@@ -1,4 +1,4 @@
-# Verovio Music Renderer vor Obsidian
+# Verovio Music Renderer for Obsidian
 
 ![](Verovio-Plugin.gif)
 
