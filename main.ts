@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, Plugin } from 'obsidian';
 import { processVerovioCodeBlocks } from './verovioProcessor';
 import { addVerovioStyles } from './styles';
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
@@ -8,7 +8,6 @@ declare global {
   interface Window {
     VerovioToolkitLoading?: boolean;
     VerovioToolkit?: any;
-    verovio?: any;
   }
 }
 
@@ -17,7 +16,6 @@ export default class VerovioMusicRenderer extends Plugin {
 
   async onload() {
     console.log("Loading Verovio Music Renderer plugin...");
-    
     addVerovioStyles();
 
     try {

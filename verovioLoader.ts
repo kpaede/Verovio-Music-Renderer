@@ -1,19 +1,21 @@
-import createVerovioModule from 'verovio/dist/verovio-toolkit-wasm.js';
-import { VerovioToolkit } from 'verovio/dist/verovio-module.mjs';
+import * as verovio from 'verovio';
+import * as fs from 'fs';
 
 export async function loadVerovio() {
-  if (window.VerovioToolkitLoading || window.VerovioToolkit) return;
+  if (window.VerovioToolkit) return;
 
-  window.VerovioToolkitLoading = true;
   console.log("Loading Verovio toolkit...");
 
-  try {
-    const VerovioModule = await createVerovioModule();
-    window.VerovioToolkit = new VerovioToolkit(VerovioModule);
-    console.log("Verovio has loaded successfully");
-    window.VerovioToolkitLoading = false;
-  } catch (error) {
-    window.VerovioToolkitLoading = false;
-    throw new Error(`Error loading Verovio toolkit: ${error.message}`);
-  }
+  return new Promise<void>((resolve, reject) => {
+    verovio.module.onRuntimeInitialized = () => {
+      try {
+        window.VerovioToolkit = new verovio.toolkit();
+        console.log("Verovio has loaded successfully");
+        resolve();
+      } catch (error) {
+        console.error("Error initializing Verovio toolkit:", error);
+        reject(new Error("Verovio toolkit not correctly loaded."));
+      }
+    };
+  });
 }

@@ -17,7 +17,7 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
       "breaks": settings.breaks,
       "pageWidth": settings.pageWidth,
       "midiTempoAdjustment": settings.midiTempoAdjustment,
-      "font": settings.font // This assumes settings.font is a string like "Bravura"
+      "font": settings.font
     });
     window.VerovioToolkit.loadData(data);
     const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
