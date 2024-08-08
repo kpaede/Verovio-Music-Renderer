@@ -1,6 +1,6 @@
 # Verovio Music Renderer vor Obsidian
 
-![](Verovio-Plugin.mp4)
+![](Verovio-Plugin.gif)
 
 This is a plugin for Obsidian (https://obsidian.md) that uses Verovio – a fast, portable and lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (and also ABC and MusicXML) into SVG.
 
