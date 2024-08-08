@@ -5,7 +5,7 @@
 This is a plugin for Obsidian (https://obsidian.md) that uses Verovio – a fast, portable and lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (and also ABC and MusicXML) into SVG.
 
 The plugin already has the following features:
-- rendering MEI, ABC and MusicXML notation dynamically (working) from the Obsidian folder and URLs - unfortunately at the moment only with the Verovio toolkit loaded from https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js (and not via npm)
+- rendering MEI, ABC and MusicXML notation dynamically (working) from the Obsidian folder and URLs
 - download button for the rendered SVG-FIle (visible by hovering the mouse over the renderd music)
 - a settings menu to change the rendering options (working, though not sure if every option is working, espeically the font option)
 
