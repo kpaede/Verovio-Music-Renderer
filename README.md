@@ -24,3 +24,4 @@ And I would love to implement these as well (and would love some help)
 - [Verovio](https://github.com/rism-digital/verovio)
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
+I have just rudimentary programming skills and use mostly ChatGPT.
