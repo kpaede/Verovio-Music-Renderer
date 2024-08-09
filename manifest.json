@@ -1,11 +1,10 @@
 {
 	"id": "Verovio-Music-Renderer",
 	"name": "Verovio Music Renderer",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
+	"description": "Rendering of music notation files.",
 	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"authorUrl": "https://dramturgie.lol",
 	"isDesktopOnly": false
 }
