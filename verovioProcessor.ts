@@ -1,4 +1,8 @@
 import VerovioMusicRenderer from './main';
+import MIDI from 'lz-midi';
+
+// Object to store the unique MIDI data by ID
+const midiDataMap: Record<string, string> = {};
 
 async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
   if (!window.VerovioToolkit) {
@@ -19,14 +23,23 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
       "midiTempoAdjustment": settings.midiTempoAdjustment,
       "font": settings.font
     });
+
     window.VerovioToolkit.loadData(data);
     const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
     window.VerovioToolkit.loadData(meiData);
     const svg = window.VerovioToolkit.renderToSVG(1);
+
+    // Create a unique ID for this rendering
+    const uniqueId = `rendering-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Generate MIDI data and store it with the unique ID
+    const base64midi = window.VerovioToolkit.renderToMIDI();
+    midiDataMap[uniqueId] = 'data:audio/midi;base64,' + base64midi;
+
     const container = document.createElement("div");
     container.className = "verovio-container";
     container.innerHTML = svg;
-    const toolbar = createToolbar(data);
+    const toolbar = createToolbar(uniqueId);
     container.appendChild(toolbar);
     el.appendChild(container);
   } catch (error) {
@@ -64,11 +77,11 @@ function isValidUrl(url: string): boolean {
   }
 }
 
-function createToolbar(data: string): HTMLDivElement {
+function createToolbar(uniqueId: string): HTMLDivElement {
   const toolbar = document.createElement("div");
   toolbar.className = "verovio-toolbar";
-  const playButton = createButton(playIcon(), () => console.log("Play button clicked"));
-  const stopButton = createButton(stopIcon(), () => console.log("Stop button clicked"));
+  const playButton = createButton(playIcon(), () => playMIDI(uniqueId));
+  const stopButton = createButton(stopIcon(), stopMIDI);
   const downloadButton = createButton(downloadIcon(), downloadSVG);
   toolbar.appendChild(playButton);
   toolbar.appendChild(stopButton);
@@ -105,6 +118,27 @@ function downloadIcon(): string {
       <path d="M5 20h14v-2H5v2zm7-18L5.5 8.5 7 10l3-3v9h2V7l3 3 1.5-1.5L12 2z"/>
     </svg>
   `;
+}
+
+async function playMIDI(uniqueId: string) {
+  const midiDataUrl = midiDataMap[uniqueId];
+  if (midiDataUrl) {
+    try {
+      // Stop any previous playback before starting new one
+      MIDI.Player.stop(); 
+      MIDI.Player.loadFile(midiDataUrl, () => {
+        MIDI.Player.start();
+      });
+    } catch (error) {
+      console.error(`Error playing MIDI for ${uniqueId}:`, error);
+    }
+  } else {
+    console.error(`MIDI data for ${uniqueId} not found.`);
+  }
+}
+
+function stopMIDI() {
+  MIDI.Player.stop();
 }
 
 async function downloadSVG(event: MouseEvent) {
