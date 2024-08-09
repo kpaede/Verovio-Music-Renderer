@@ -19,6 +19,7 @@ And I would love to implement these as well (But I'm not a programmer and thus c
 
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/`.
 
-## Additional installed node modules
-- verovio
+## Additional installed and used node modules
+- [Verovio](https://github.com/rism-digital/verovio)
+- [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
