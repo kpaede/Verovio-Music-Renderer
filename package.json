@@ -1,6 +1,6 @@
 {
-	"name": "Verovio-Music-Renderer",
-	"version": "0.1.0",
+	"name": "Verovio Music Renderer",
+	"version": "1.0.1",
 	"description": "Rendering of music notation files in Obsidian.",
 	"main": "main.js",
 	"scripts": {
