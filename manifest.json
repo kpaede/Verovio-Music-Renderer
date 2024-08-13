@@ -1,6 +1,6 @@
 {
 	"id": "Verovio-Music-Renderer",
-	"name": "Verovio Music Renderer",
+	"name": "verovio music renderer",
 	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Rendering of music notation files.",
