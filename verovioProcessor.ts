@@ -250,7 +250,6 @@ function midiHighlightingHandler(data: any, uniqueId: string) {
 
     const currentTimeMillis = MIDI.Player.currentTime + 10;
 
-    // Instead of fetching MEI data from verovioDataMap, just use the existing Verovio data
     const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
 
     if (elements?.notes) {

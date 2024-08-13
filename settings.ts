@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   breaks: 'auto',
   pageWidth: 700,
   midiTempoAdjustment: 1.0,
-  font: 'Leipzig' // Default font
+  font: 'Leland' // Default font
 }
 
 export class VerovioSettingTab extends PluginSettingTab {
@@ -36,30 +36,8 @@ export class VerovioSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName('Setting #1')
-      .setDesc("It's a secret")
-      .addText(text => text
-        .setPlaceholder('Enter your secret')
-        .setValue(this.plugin.settings.mySetting)
-        .onChange(async (value) => {
-          this.plugin.settings.mySetting = value;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName('Scale')
-      .setDesc('Scale for Verovio rendering')
-      .addSlider(slider => slider
-        .setLimits(1, 1000, 1)
-        .setValue(this.plugin.settings.scale)
-        .onChange(async (value) => {
-          this.plugin.settings.scale = value;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName('Adjust Page Height')
-      .setDesc('Adjust page height')
+      .setName('Adjust Rendering Height automatically')
+      .setDesc('Disables other sizing options automatically')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.adjustPageHeight)
         .onChange(async (value) => {
@@ -68,12 +46,23 @@ export class VerovioSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('Adjust Page Width')
-      .setDesc('Adjust page width')
+      .setName('Adjust Rendering Width automatically')
+      .setDesc('Disables other sizing options automatically')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.adjustPageWidth)
         .onChange(async (value) => {
           this.plugin.settings.adjustPageWidth = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Scale')
+      .setDesc('Scale rendering, 1-150%')
+      .addSlider(slider => slider
+        .setLimits(1, 150, 1)
+        .setValue(this.plugin.settings.scale)
+        .onChange(async (value) => {
+          this.plugin.settings.scale = value;
           await this.plugin.saveSettings();
         }));
 
@@ -94,9 +83,9 @@ export class VerovioSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Page Width')
-      .setDesc('Width of the page')
+      .setDesc('Width of the Rendering')
       .addSlider(slider => slider
-        .setLimits(100, 1200, 50)
+        .setLimits(100, 8800, 50)
         .setValue(this.plugin.settings.pageWidth)
         .onChange(async (value) => {
           this.plugin.settings.pageWidth = value;
@@ -105,7 +94,7 @@ export class VerovioSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('MIDI Tempo Adjustment')
-      .setDesc('Adjustment factor for MIDI tempo')
+      .setDesc('Adjustment factor for MIDI tempo (not working)')
       .addSlider(slider => slider
         .setLimits(0.5, 2.0, 0.1)
         .setValue(this.plugin.settings.midiTempoAdjustment)
@@ -114,18 +103,18 @@ export class VerovioSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-        new Setting(containerEl)
-        .setName('Font')
-        .setDesc('Musical font for rendering')
-        .addDropdown(dropdown => dropdown
-          .addOption('"Leipzig"', 'Leipzig')
-          .addOption('"Bravura"', 'Bravura')
-          .addOption('"Gootville"', 'Gootville')
-          .addOption('"Leland"', 'Leland')
-          .setValue(this.plugin.settings.font)
-          .onChange(async (value) => {
-            this.plugin.settings.font = value;
-            await this.plugin.saveSettings();
-          }));
-    }
+    new Setting(containerEl)
+      .setName('Font')
+      .setDesc('Musical font for rendering')
+      .addDropdown(dropdown => dropdown
+        .addOption('Leipzig', 'Leipzig')
+        .addOption('Bravura', 'Bravura')
+        .addOption('Gootville', 'Gootville')
+        .addOption('Leland', 'Leland')
+        .setValue(this.plugin.settings.font)
+        .onChange(async (value) => {
+          this.plugin.settings.font = value;
+          await this.plugin.saveSettings();
+        }));
   }
+}
