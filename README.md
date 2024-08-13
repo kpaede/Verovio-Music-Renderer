@@ -11,7 +11,7 @@ The plugin already has the following features:
 - Sound playback of the rendered music
 
 And I would love to implement these as well (and would love some help)
--  highlighting of the live playback notes (as stated in the Verovio docs https://book.verovio.org/interactive-notation/playing-midi.html)
+-  highlighting of the live playback notes (as stated in the Verovio docs https://book.verovio.org/interactive-notation/playing-midi.html). The current Version of my TS files has it implemented, but it only works with one rendering per obsidian document, more than one rendering messes it up.
 - the possibility to just render a selection of bars (as stated here https://book.verovio.org/interactive-notation/content-selection.html)
 - the possibility to render not just URLs but also direct code like the ABCJS plugin https://github.com/abcjs-music/obsidian-plugin-abcjs
 
