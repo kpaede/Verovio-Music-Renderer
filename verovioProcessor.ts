@@ -23,7 +23,7 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
         // Load and render data
         window.VerovioToolkit.loadData(data);
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
-        window.VerovioToolkit.loadData(meiData); // This seems redundant but may be needed for some rendering.
+        window.VerovioToolkit.loadData(meiData);
 
         const uniqueId = generateUniqueId();
         sourceMap[uniqueId] = source; // Store the source path with the uniqueId
@@ -91,7 +91,18 @@ function createContainer(uniqueId: string): HTMLDivElement {
 
 function updateContainerSVG(uniqueId: string, svg: string) {
     const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
-    if (container) container.innerHTML = svg;
+    if (!container) return;
+
+    // Get the current toolbar
+    const toolbar = container.querySelector('.verovio-toolbar');
+    
+    // Clear the container and set the new SVG
+    container.innerHTML = svg;
+
+    // Reattach the toolbar
+    if (toolbar) {
+        container.appendChild(toolbar);
+    }
 }
 
 function createToolbar(uniqueId: string): HTMLDivElement {
@@ -150,51 +161,53 @@ async function playMIDI(uniqueId: string) {
 
 async function reloadVerovioData(uniqueId: string) {
     try {
-      // Find the source path by uniqueId
-      const source = findSourcePathByUniqueId(uniqueId);
-      if (!source) {
-        console.error(`Source path not found for uniqueId: ${uniqueId}`);
-        throw new Error(`Source not found for uniqueId: ${uniqueId}`);
-      }
-  
-      // Fetch the file data from the source
-      const data = await fetchFileData(source.trim());
-      if (!data) {
-        console.error(`Failed to fetch data from source: ${source}`);
-        throw new Error('Failed to fetch file data.');
-      }
-  
-      // Load the data into Verovio
-      window.VerovioToolkit.loadData(data);
-  
-      // Get MEI data and ensure it's valid
-      const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
-      if (!meiData) {
-        console.error('Failed to get MEI data from VerovioToolkit.');
-        throw new Error('Failed to get MEI data.');
-      }
-  
-      // Re-load the MEI data to ensure rendering
-      window.VerovioToolkit.loadData(meiData);
-  
-      // Re-render the page
-      renderPage(uniqueId);
-  
-      // Notify user
-      console.log('Verovio data reloaded successfully.');
-    } catch (error) {
-      console.error(`Error reloading Verovio data: ${error.message}`, error);
-    }
-  }
-  
-  
+        // Find the source path by uniqueId
+        const source = findSourcePathByUniqueId(uniqueId);
+        if (!source) {
+            console.error(`Source path not found for uniqueId: ${uniqueId}`);
+            throw new Error(`Source not found for uniqueId: ${uniqueId}`);
+        }
 
+        // Fetch the file data from the source
+        const data = await fetchFileData(source.trim());
+        if (!data) {
+            console.error(`Failed to fetch data from source: ${source}`);
+            throw new Error('Failed to fetch file data.');
+        }
+
+        // Load the data into Verovio
+        window.VerovioToolkit.loadData(data);
+        console.debug('Data loaded into Verovio.');
+
+        // Retrieve MEI data with layout
+        const meiDataWithLayout = window.VerovioToolkit.getMEI({ noLayout: false });
+        if (!meiDataWithLayout) {
+            console.error('Failed to retrieve MEI data with layout.');
+            throw new Error('Failed to retrieve MEI data.');
+        }
+        window.VerovioToolkit.loadData(meiDataWithLayout);
+        console.debug('MEI data with layout loaded into Verovio.');
+
+        // Ensure the SVG rendering is done
+        const svg = window.VerovioToolkit.renderToSVG(currentPage);
+        if (!svg) {
+            console.error(`Failed to render SVG for page ${currentPage}.`);
+            throw new Error('Failed to render SVG.');
+        }
+
+        // Update the container with the rendered SVG
+        updateContainerSVG(uniqueId, svg);
+
+        // Notify user
+        console.log('Verovio data reloaded successfully.');
+    } catch (error) {
+        console.error(`Error reloading Verovio data: ${error.message}`, error);
+    }
+}
 
 function findSourcePathByUniqueId(uniqueId: string): string | undefined {
     return sourceMap[uniqueId];
 }
-
-
 
 function stopMIDI() {
     MIDI.Player.stop();
