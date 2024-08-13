@@ -1,10 +1,10 @@
 import VerovioMusicRenderer from './main';
 import MIDI from 'lz-midi';
 
-// Object to store the unique MIDI data by ID
 const midiDataMap: Record<string, string> = {};
+const verovioDataMap: Record<string, string> = {}; // Store Verovio data by unique ID
 let currentPage = 1; // Initialize with the default or current page number
-let currentElements: { page: number } = { page: 1 }; // Initialize with a default page
+let currentElements: { page: number, uniqueId: string } = { page: 1, uniqueId: '' }; // Initialize with default values
 
 async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
     const startTime = performance.now();
@@ -32,10 +32,12 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
 
         console.log(`[${new Date().toISOString()}] Verovio options set:`, settings);
 
+        // Load the fetched data into VerovioToolkit
         window.VerovioToolkit.loadData(data);
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
         console.log(`[${new Date().toISOString()}] MEI data generated successfully. Data size: ${meiData.length} bytes`);
 
+        // Load MEI data into VerovioToolkit
         window.VerovioToolkit.loadData(meiData);
 
         // Create a unique ID for this rendering
@@ -45,32 +47,31 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
         // Generate MIDI data and store it with the unique ID
         const base64midi = window.VerovioToolkit.renderToMIDI();
         midiDataMap[uniqueId] = 'data:audio/midi;base64,' + base64midi;
+        verovioDataMap[uniqueId] = data; // Store the Verovio data
         console.log(`[${new Date().toISOString()}] MIDI data generated and stored. Data size: ${base64midi.length} bytes`);
 
         // Initial render of the first page
         currentElements.page = 1;
+        currentElements.uniqueId = uniqueId; // Set the current unique ID
         checkAndRenderPage();
 
         const container = document.createElement("div");
         container.className = "verovio-container";
-        container.setAttribute("data-unique-id", uniqueId);  // Ensure the unique ID is set here
+        container.setAttribute("data-unique-id", uniqueId); // Set data attribute for unique ID
         const svg = window.VerovioToolkit.renderToSVG(currentPage);
         console.log(`[${new Date().toISOString()}] SVG rendered for page ${currentPage}. SVG size: ${svg.length} bytes`);
 
         container.innerHTML = svg;
-
-        // Additional logging to check SVG structure
-        console.log(`[${new Date().toISOString()}] SVG structure for unique ID ${uniqueId}:`, container.innerHTML);
-
         const toolbar = createToolbar(uniqueId);
         container.appendChild(toolbar);
         el.appendChild(container);
+
+        console.log(`[${new Date().toISOString()}] Rendering completed in ${(performance.now() - startTime).toFixed(2)} ms`);
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Error rendering data:`, error, error.stack);
         el.innerHTML = `<p>Error rendering data: ${error.message}</p>`;
     }
 }
-
 
 function checkAndRenderPage() {
     console.log(`[${new Date().toISOString()}] Checking page. Current page: ${currentPage}, Target page: ${currentElements.page}`);
@@ -84,7 +85,7 @@ function checkAndRenderPage() {
         console.log(`[${new Date().toISOString()}] Page number mismatch. Updating to page ${currentElements.page}`);
         currentPage = currentElements.page;
         const svg = window.VerovioToolkit.renderToSVG(currentPage);
-        document.getElementById("notation")!.innerHTML = svg;
+        document.querySelector(`.verovio-container[data-unique-id="${currentElements.uniqueId}"]`)!.innerHTML = svg;
         console.log(`[${new Date().toISOString()}] Page ${currentPage} rendered successfully.`);
     } else {
         console.log(`[${new Date().toISOString()}] Already on the correct page: ${currentPage}`);
@@ -180,9 +181,8 @@ async function playMIDI(uniqueId: string) {
                 console.log(`[${new Date().toISOString()}] MIDI file loaded successfully. Starting playback.`);
                 MIDI.Player.start();
 
-                // Debug: Log state before attaching highlighting
                 console.log(`[${new Date().toISOString()}] Current Verovio toolkit state before highlighting attachment:`, window.VerovioToolkit);
-                attachMIDIHighlighting(uniqueId);  // Ensure uniqueId is passed here
+                attachMIDIHighlighting(uniqueId);
             });
         } catch (error) {
             console.error(`[${new Date().toISOString()}] Error playing MIDI for ${uniqueId}:`, error, error.stack);
@@ -191,7 +191,6 @@ async function playMIDI(uniqueId: string) {
         console.error(`[${new Date().toISOString()}] MIDI data for ${uniqueId} not found.`);
     }
 }
-
 
 function stopMIDI() {
     console.log(`[${new Date().toISOString()}] Stopping MIDI playback.`);
@@ -225,35 +224,38 @@ async function downloadSVG(event: MouseEvent) {
 }
 
 const midiHighlightingHandler = function (data: any, uniqueId: string) {
-    console.log(`[${new Date().toISOString()}] MIDI highlighting handler triggered for unique ID: ${uniqueId}. Data:`, data);
+    console.log(`[${new Date().toISOString()}] MIDI highlighting handler triggered. Data:`, data);
     try {
         if (!window.VerovioToolkit) {
             console.error(`[${new Date().toISOString()}] VerovioToolkit is not available. Stack trace:`, new Error().stack);
             return;
         }
 
-        // Identify the container corresponding to the current uniqueId
         const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
         if (!container) {
-            console.error(`[${new Date().toISOString()}] No container found for unique ID: ${uniqueId}. Please check that the ID was correctly set on the container.`);
+            console.error(`[${new Date().toISOString()}] No container found for unique ID: ${uniqueId}.`);
             return;
         }
 
-        // Clear previous highlights within this container
         let playingNotes = container.querySelectorAll('g.note.playing');
         console.log(`[${new Date().toISOString()}] Clearing previous highlights in container with unique ID: ${uniqueId}. Found ${playingNotes.length} notes.`);
         playingNotes.forEach(note => note.classList.remove("playing"));
 
-        // Retrieve the current time with a small buffer
-        const timeBuffer = 10; // e.g., 10 milliseconds
+        const timeBuffer = 10;
         const currentTimeMillis = MIDI.Player.currentTime + timeBuffer;
         console.log(`[${new Date().toISOString()}] Current playback time in ms (with buffer): ${currentTimeMillis}`);
 
-        // Retrieve the elements currently being played
+        const verovioData = verovioDataMap[uniqueId];
+        if (verovioData) {
+            window.VerovioToolkit.loadData(verovioData);
+        } else {
+            console.error(`[${new Date().toISOString()}] No Verovio data found for unique ID: ${uniqueId}`);
+            return;
+        }
+
         const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
         console.log(`[${new Date().toISOString()}] Elements retrieved at current time:`, elements);
 
-        // Check and process elements based on expected format
         if (elements && Array.isArray(elements.notes)) {
             if (elements.notes.length === 0) {
                 console.warn(`[${new Date().toISOString()}] No notes found at time: ${currentTimeMillis}`);
@@ -261,21 +263,11 @@ const midiHighlightingHandler = function (data: any, uniqueId: string) {
                 elements.notes.forEach(noteId => {
                     console.log(`[${new Date().toISOString()}] Processing note with ID: ${noteId}`);
                     const noteElement = container.querySelector(`g.note#${noteId}`);
-
                     if (noteElement) {
-                        console.log(`[${new Date().toISOString()}] Found and highlighting note element with ID: ${noteId} in container with unique ID: ${uniqueId}`);
                         noteElement.classList.add("playing");
+                        console.log(`[${new Date().toISOString()}] Highlighted note element with ID: ${noteId} in container with unique ID: ${uniqueId}`);
                     } else {
-                        console.warn(`[${new Date().toISOString()}] Note element not found for ID: ${noteId} in container with unique ID: ${uniqueId}.`);
-                        console.log(`[${new Date().toISOString()}] SVG content of container:`, container.innerHTML);
-                    }
-                    
-                    // Debugging to check if note element exists
-                    if (noteElement) {
-                        console.log(`[${new Date().toISOString()}] Found and highlighting note element with ID: ${noteId} in container with unique ID: ${uniqueId}`);
-                        noteElement.classList.add("playing");
-                    } else {
-                        console.warn(`[${new Date().toISOString()}] Note element not found for ID: ${noteId} in container with unique ID: ${uniqueId}.`);
+                        console.warn(`[${new Date().toISOString()}] Note element not found for ID: ${noteId} in container with unique ID: ${uniqueId}`);
                     }
                 });
             }
@@ -283,7 +275,6 @@ const midiHighlightingHandler = function (data: any, uniqueId: string) {
             console.error(`[${new Date().toISOString()}] Unexpected data format from getElementsAtTime:`, elements);
         }
 
-        // Check and render the correct page within this container
         checkAndRenderPage();
 
     } catch (error) {
@@ -291,9 +282,6 @@ const midiHighlightingHandler = function (data: any, uniqueId: string) {
     }
 };
 
-
-
-// Function to attach MIDI highlighting specifically for the current rendering
 function attachMIDIHighlighting(uniqueId: string) {
     console.log(`[${new Date().toISOString()}] Attaching MIDI highlighting handler.`);
     try {
@@ -302,7 +290,6 @@ function attachMIDIHighlighting(uniqueId: string) {
             return;
         }
 
-        // Attach the custom MIDI event handler to the MIDI Player's event listener
         MIDI.Player.addListener((data: any) => {
             if (data.message === 144) { // 144 corresponds to noteOn
                 console.log(`[${new Date().toISOString()}] MIDI event 'noteOn' triggered. Data:`, data);
