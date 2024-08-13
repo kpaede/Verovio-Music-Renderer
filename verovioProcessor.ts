@@ -1,6 +1,11 @@
 import VerovioMusicRenderer from './main';
 import MIDI from 'lz-midi';
 import { VerovioPluginSettings, DEFAULT_SETTINGS } from './settings';
+import { exec } from 'child_process';
+import { TFile } from 'obsidian';
+import * as os from 'os';  // Import the os module to detect the operating system
+
+
 
 // Maps for storing source paths
 const sourceMap: Record<string, string> = {}; 
@@ -112,9 +117,64 @@ function createToolbar(uniqueId: string): HTMLDivElement {
     toolbar.appendChild(createButton(playIcon(), () => playMIDI(uniqueId)));
     toolbar.appendChild(createButton(stopIcon(), stopMIDI));
     toolbar.appendChild(createButton(downloadIcon(), downloadSVG));
+    toolbar.appendChild(createButton(openIcon(), () => openFileExternally(uniqueId))); // Add the new button here
 
     return toolbar;
 }
+
+function openIcon(): string {
+    return `&#128194;`; // Unicode for a folder icon (📂)
+}
+
+async function openFileExternally(uniqueId: string) {
+    try {
+        const source = findSourcePathByUniqueId(uniqueId);
+        if (!source) {
+            throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
+        }
+
+        const file = app.vault.getAbstractFileByPath(source.trim());
+        if (!file || !(file instanceof TFile)) {
+            throw new Error(`File not found or not a valid file: ${source}`);
+        }
+
+        // Get the absolute path of the file
+        const absoluteFilePath = app.vault.adapter.getFullPath(file.path);
+        console.log(`Trying to open file at: ${absoluteFilePath}`);
+
+        const platform = os.platform();
+        let command = '';
+
+        if (platform === 'win32') {
+            command = `start "" "${absoluteFilePath}"`;
+        } else if (platform === 'darwin') {
+            command = `open "${absoluteFilePath}"`;
+        } else if (platform === 'linux') {
+            command = `xdg-open "${absoluteFilePath}"`;
+        } else {
+            throw new Error('Unsupported OS');
+        }
+
+        console.log(`Executing command: ${command}`);
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Execution error: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                console.error(`Execution stderr: ${stderr}`);
+            }
+            console.log(`Execution stdout: ${stdout}`);
+        });
+    } catch (error) {
+        console.error(`Error opening file externally: ${error.message}`);
+    }
+}
+
+
+
+
+
 
 function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
     const button = document.createElement("button");
