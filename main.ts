@@ -35,15 +35,7 @@ export default class VerovioMusicRenderer extends Plugin {
         console.error("Error processing Verovio code block:", error);
       }
     });
-
-    const ribbonIconEl = this.addRibbonIcon("dice", "Verovio Music Renderer", () => {
-      new Notice("This is a notice!");
-    });
-    ribbonIconEl.addClass("my-plugin-ribbon-class");
-
-    const statusBarItemEl = this.addStatusBarItem();
-    statusBarItemEl.setText("Status Bar Text");
-  }
+  }  // <-- Missing closing brace added here
 
   onunload() {
     console.log("Unloading Verovio Music Renderer plugin...");
