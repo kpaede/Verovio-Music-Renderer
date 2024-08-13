@@ -1,143 +1,111 @@
 import VerovioMusicRenderer from './main';
 import MIDI from 'lz-midi';
+import { VerovioPluginSettings, DEFAULT_SETTINGS } from './settings';
 
-const midiDataMap: Record<string, string> = {};
-const verovioDataMap: Record<string, string> = {}; // Store Verovio data by unique ID
-let currentPage = 1; // Initialize with the default or current page number
-let currentElements: { page: number, uniqueId: string } = { page: 1, uniqueId: '' }; // Initialize with default values
+// Maps for storing source paths
+const sourceMap: Record<string, string> = {}; 
+
+let currentPage = 1;
+let currentElements: { page: number, uniqueId: string } = { page: 1, uniqueId: '' };
 
 async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-    const startTime = performance.now();
     if (!window.VerovioToolkit) {
-        console.error("Verovio is not yet loaded or failed to load.");
+        el.innerHTML = `<p>Verovio is not yet loaded or failed to load.</p>`;
         return;
     }
 
-    const settings = this.settings;
-
     try {
-        console.log(`[${new Date().toISOString()}] Fetching file data for source: ${source.trim()}`);
         const data = await fetchFileData(source.trim());
-        console.log(`[${new Date().toISOString()}] File data fetched successfully. Data size: ${data.length} bytes`);
 
-        window.VerovioToolkit.setOptions({
-            scale: settings.scale,
-            adjustPageHeight: settings.adjustPageHeight,
-            adjustPageWidth: settings.adjustPageWidth,
-            breaks: settings.breaks,
-            pageWidth: settings.pageWidth,
-            midiTempoAdjustment: settings.midiTempoAdjustment,
-            font: settings.font
-        });
+        // Set Verovio options
+        window.VerovioToolkit.setOptions(this.settings);
 
-        console.log(`[${new Date().toISOString()}] Verovio options set:`, settings);
-
-        // Load the fetched data into VerovioToolkit
+        // Load and render data
         window.VerovioToolkit.loadData(data);
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
-        console.log(`[${new Date().toISOString()}] MEI data generated successfully. Data size: ${meiData.length} bytes`);
+        window.VerovioToolkit.loadData(meiData); // This seems redundant but may be needed for some rendering.
 
-        // Load MEI data into VerovioToolkit
-        window.VerovioToolkit.loadData(meiData);
+        const uniqueId = generateUniqueId();
+        sourceMap[uniqueId] = source; // Store the source path with the uniqueId
 
-        // Create a unique ID for this rendering
-        const uniqueId = `rendering-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        console.log(`[${new Date().toISOString()}] Unique ID for rendering created: ${uniqueId}`);
+        currentElements = { page: 1, uniqueId };
+        renderPage(uniqueId);
 
-        // Generate MIDI data and store it with the unique ID
-        const base64midi = window.VerovioToolkit.renderToMIDI();
-        midiDataMap[uniqueId] = 'data:audio/midi;base64,' + base64midi;
-        verovioDataMap[uniqueId] = data; // Store the Verovio data
-        console.log(`[${new Date().toISOString()}] MIDI data generated and stored. Data size: ${base64midi.length} bytes`);
-
-        // Initial render of the first page
-        currentElements.page = 1;
-        currentElements.uniqueId = uniqueId; // Set the current unique ID
-        checkAndRenderPage();
-
-        const container = document.createElement("div");
-        container.className = "verovio-container";
-        container.setAttribute("data-unique-id", uniqueId); // Set data attribute for unique ID
-        const svg = window.VerovioToolkit.renderToSVG(currentPage);
-        console.log(`[${new Date().toISOString()}] SVG rendered for page ${currentPage}. SVG size: ${svg.length} bytes`);
-
-        container.innerHTML = svg;
-        const toolbar = createToolbar(uniqueId);
-        container.appendChild(toolbar);
+        const container = createContainer(uniqueId);
         el.appendChild(container);
-
-        console.log(`[${new Date().toISOString()}] Rendering completed in ${(performance.now() - startTime).toFixed(2)} ms`);
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error rendering data:`, error, error.stack);
         el.innerHTML = `<p>Error rendering data: ${error.message}</p>`;
     }
 }
 
-function checkAndRenderPage() {
-    console.log(`[${new Date().toISOString()}] Checking page. Current page: ${currentPage}, Target page: ${currentElements.page}`);
-
-    if (currentElements.page <= 0) {
-        console.error(`[${new Date().toISOString()}] Error: Page number is invalid. Stack trace:`, new Error().stack);
-        return;
-    }
+function renderPage(uniqueId: string) {
+    if (currentElements.page <= 0) return;
 
     if (currentElements.page !== currentPage) {
-        console.log(`[${new Date().toISOString()}] Page number mismatch. Updating to page ${currentElements.page}`);
         currentPage = currentElements.page;
         const svg = window.VerovioToolkit.renderToSVG(currentPage);
-        document.querySelector(`.verovio-container[data-unique-id="${currentElements.uniqueId}"]`)!.innerHTML = svg;
-        console.log(`[${new Date().toISOString()}] Page ${currentPage} rendered successfully.`);
-    } else {
-        console.log(`[${new Date().toISOString()}] Already on the correct page: ${currentPage}`);
+        updateContainerSVG(uniqueId, svg);
     }
 }
 
 async function fetchFileData(path: string): Promise<string> {
-    try {
-        let data = '';
-        if (isValidUrl(path)) {
-            console.log(`[${new Date().toISOString()}] Fetching data from URL: ${path}`);
-            const response = await fetch(path);
-            if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
-            data = await response.text();
-        } else {
-            console.log(`[${new Date().toISOString()}] Fetching data from local file: ${path}`);
-            const file = app.vault.getAbstractFileByPath(path);
-            if (!file) throw new Error(`File not found: ${path}`);
-            data = await app.vault.read(file);
-        }
-        console.log(`[${new Date().toISOString()}] Data fetched successfully. Data size: ${data.length} bytes`);
-        return data;
-    } catch (error) {
-        console.error(`[${new Date().toISOString()}] Failed to fetch file data:`, error, error.stack);
-        throw new Error(`Failed to fetch file data: ${error.message}`);
+    if (isValidUrl(path)) {
+        // If the path is a valid URL, fetch the data from the URL
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+        return await response.text();
     }
+
+    // If the path is not a URL, assume it's a file path in Obsidian
+    const file = app.vault.getAbstractFileByPath(path);
+    if (!file) throw new Error(`File not found: ${path}`);
+    return await app.vault.read(file);
 }
 
 function isValidUrl(url: string): boolean {
     try {
         new URL(url);
         return true;
-    } catch (e) {
+    } catch {
         return false;
     }
 }
 
+function generateUniqueId(): string {
+    return `rendering-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function createContainer(uniqueId: string): HTMLDivElement {
+    const container = document.createElement("div");
+    container.className = "verovio-container";
+    container.setAttribute("data-unique-id", uniqueId);
+
+    const svg = window.VerovioToolkit.renderToSVG(currentPage);
+    container.innerHTML = svg;
+
+    const toolbar = createToolbar(uniqueId);
+    container.appendChild(toolbar);
+
+    return container;
+}
+
+function updateContainerSVG(uniqueId: string, svg: string) {
+    const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
+    if (container) container.innerHTML = svg;
+}
+
 function createToolbar(uniqueId: string): HTMLDivElement {
-    console.log(`[${new Date().toISOString()}] Creating toolbar for unique ID: ${uniqueId}`);
     const toolbar = document.createElement("div");
     toolbar.className = "verovio-toolbar";
-    const playButton = createButton(playIcon(), () => playMIDI(uniqueId));
-    const stopButton = createButton(stopIcon(), stopMIDI);
-    const downloadButton = createButton(downloadIcon(), downloadSVG);
-    toolbar.appendChild(playButton);
-    toolbar.appendChild(stopButton);
-    toolbar.appendChild(downloadButton);
+
+    toolbar.appendChild(createButton(playIcon(), () => playMIDI(uniqueId)));
+    toolbar.appendChild(createButton(stopIcon(), stopMIDI));
+    toolbar.appendChild(createButton(downloadIcon(), downloadSVG));
+
     return toolbar;
 }
 
 function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
-    console.log(`[${new Date().toISOString()}] Creating button with icon:`, iconSvg);
     const button = document.createElement("button");
     button.innerHTML = iconSvg;
     button.onclick = onClick;
@@ -145,74 +113,103 @@ function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
 }
 
 function playIcon(): string {
-    return `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M8 5v14l11-7z"/>
-        </svg>
-    `;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
 }
 
 function stopIcon(): string {
-    return `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M6 6h12v12H6z"/>
-        </svg>
-    `;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>`;
 }
 
 function downloadIcon(): string {
-    return `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M5 20h14v-2H5v2zm7-18L5.5 8.5 7 10l3-3v9h2V7l3 3 1.5-1.5L12 2z"/>
-        </svg>
-    `;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18L5.5 8.5 7 10l3-3v9h2V7l3 3 1.5-1.5L12 2z"/></svg>`;
 }
 
 async function playMIDI(uniqueId: string) {
-    console.log(`[${new Date().toISOString()}] Attempting to play MIDI for unique ID: ${uniqueId}`);
-    const midiDataUrl = midiDataMap[uniqueId];
-    if (midiDataUrl) {
-        try {
-            console.log(`[${new Date().toISOString()}] Stopping any previous MIDI playback.`);
-            MIDI.Player.stop();
+    try {
+        // Reload Verovio data
+        await reloadVerovioData(uniqueId);
 
-            console.log(`[${new Date().toISOString()}] Loading and playing MIDI data for ID: ${uniqueId}`);
-            MIDI.Player.loadFile(midiDataUrl, () => {
-                console.log(`[${new Date().toISOString()}] MIDI file loaded successfully. Starting playback.`);
-                MIDI.Player.start();
+        // Generate MIDI data URL directly
+        const midiData = window.VerovioToolkit.renderToMIDI();
+        if (!midiData) throw new Error('Failed to generate MIDI data.');
 
-                console.log(`[${new Date().toISOString()}] Current Verovio toolkit state before highlighting attachment:`, window.VerovioToolkit);
-                attachMIDIHighlighting(uniqueId);
-            });
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] Error playing MIDI for ${uniqueId}:`, error, error.stack);
-        }
-    } else {
-        console.error(`[${new Date().toISOString()}] MIDI data for ${uniqueId} not found.`);
+        const midiDataUrl = 'data:audio/midi;base64,' + midiData;
+
+        // Stop any existing MIDI playback
+        MIDI.Player.stop();
+
+        // Load and start MIDI playback
+        MIDI.Player.loadFile(midiDataUrl, () => {
+            MIDI.Player.start();
+            attachMIDIHighlighting(uniqueId);
+        });
+    } catch (error) {
+        console.error(`Error playing MIDI for ${uniqueId}: ${error.message}`);
     }
 }
 
+async function reloadVerovioData(uniqueId: string) {
+    try {
+      // Find the source path by uniqueId
+      const source = findSourcePathByUniqueId(uniqueId);
+      if (!source) {
+        console.error(`Source path not found for uniqueId: ${uniqueId}`);
+        throw new Error(`Source not found for uniqueId: ${uniqueId}`);
+      }
+  
+      // Fetch the file data from the source
+      const data = await fetchFileData(source.trim());
+      if (!data) {
+        console.error(`Failed to fetch data from source: ${source}`);
+        throw new Error('Failed to fetch file data.');
+      }
+  
+      // Load the data into Verovio
+      window.VerovioToolkit.loadData(data);
+  
+      // Get MEI data and ensure it's valid
+      const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
+      if (!meiData) {
+        console.error('Failed to get MEI data from VerovioToolkit.');
+        throw new Error('Failed to get MEI data.');
+      }
+  
+      // Re-load the MEI data to ensure rendering
+      window.VerovioToolkit.loadData(meiData);
+  
+      // Re-render the page
+      renderPage(uniqueId);
+  
+      // Notify user
+      console.log('Verovio data reloaded successfully.');
+    } catch (error) {
+      console.error(`Error reloading Verovio data: ${error.message}`, error);
+    }
+  }
+  
+  
+
+
+function findSourcePathByUniqueId(uniqueId: string): string | undefined {
+    return sourceMap[uniqueId];
+}
+
+
+
 function stopMIDI() {
-    console.log(`[${new Date().toISOString()}] Stopping MIDI playback.`);
     MIDI.Player.stop();
 }
 
 async function downloadSVG(event: MouseEvent) {
     const container = (event.target as HTMLElement).closest(".verovio-container");
-    if (!container) {
-        console.error(`[${new Date().toISOString()}] Container element not found. Stack trace:`, new Error().stack);
-        return;
-    }
+    if (!container) return;
+
     const svgElement = container.querySelector("svg");
-    if (!svgElement) {
-        console.error(`[${new Date().toISOString()}] SVG element not found. Stack trace:`, new Error().stack);
-        return;
-    }
-    console.log(`[${new Date().toISOString()}] Preparing to download SVG. Size: ${svgElement.outerHTML.length} bytes`);
-    const serializer = new XMLSerializer();
-    const source = serializer.serializeToString(svgElement);
-    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+    if (!svgElement) return;
+
+    const blob = new Blob([new XMLSerializer().serializeToString(svgElement)], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
+    
     const a = document.createElement("a");
     a.href = url;
     a.download = "score.svg";
@@ -220,87 +217,37 @@ async function downloadSVG(event: MouseEvent) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log(`[${new Date().toISOString()}] SVG download initiated.`);
 }
 
-const midiHighlightingHandler = function (data: any, uniqueId: string) {
-    console.log(`[${new Date().toISOString()}] MIDI highlighting handler triggered. Data:`, data);
-    try {
-        if (!window.VerovioToolkit) {
-            console.error(`[${new Date().toISOString()}] VerovioToolkit is not available. Stack trace:`, new Error().stack);
-            return;
-        }
-
-        const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
-        if (!container) {
-            console.error(`[${new Date().toISOString()}] No container found for unique ID: ${uniqueId}.`);
-            return;
-        }
-
-        let playingNotes = container.querySelectorAll('g.note.playing');
-        console.log(`[${new Date().toISOString()}] Clearing previous highlights in container with unique ID: ${uniqueId}. Found ${playingNotes.length} notes.`);
-        playingNotes.forEach(note => note.classList.remove("playing"));
-
-        const timeBuffer = 10;
-        const currentTimeMillis = MIDI.Player.currentTime + timeBuffer;
-        console.log(`[${new Date().toISOString()}] Current playback time in ms (with buffer): ${currentTimeMillis}`);
-
-        const verovioData = verovioDataMap[uniqueId];
-        if (verovioData) {
-            window.VerovioToolkit.loadData(verovioData);
-        } else {
-            console.error(`[${new Date().toISOString()}] No Verovio data found for unique ID: ${uniqueId}`);
-            return;
-        }
-
-        const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
-        console.log(`[${new Date().toISOString()}] Elements retrieved at current time:`, elements);
-
-        if (elements && Array.isArray(elements.notes)) {
-            if (elements.notes.length === 0) {
-                console.warn(`[${new Date().toISOString()}] No notes found at time: ${currentTimeMillis}`);
-            } else {
-                elements.notes.forEach(noteId => {
-                    console.log(`[${new Date().toISOString()}] Processing note with ID: ${noteId}`);
-                    const noteElement = container.querySelector(`g.note#${noteId}`);
-                    if (noteElement) {
-                        noteElement.classList.add("playing");
-                        console.log(`[${new Date().toISOString()}] Highlighted note element with ID: ${noteId} in container with unique ID: ${uniqueId}`);
-                    } else {
-                        console.warn(`[${new Date().toISOString()}] Note element not found for ID: ${noteId} in container with unique ID: ${uniqueId}`);
-                    }
-                });
-            }
-        } else {
-            console.error(`[${new Date().toISOString()}] Unexpected data format from getElementsAtTime:`, elements);
-        }
-
-        checkAndRenderPage();
-
-    } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error in midiHighlightingHandler:`, error, error.stack);
-    }
-};
-
 function attachMIDIHighlighting(uniqueId: string) {
-    console.log(`[${new Date().toISOString()}] Attaching MIDI highlighting handler.`);
-    try {
-        if (!MIDI.Player) {
-            console.error(`[${new Date().toISOString()}] MIDI.Player is not available. Stack trace:`, new Error().stack);
-            return;
+    MIDI.Player.addListener((data: any) => {
+        if (data.message === 144) {
+            midiHighlightingHandler(data, uniqueId);
         }
+    });
+}
 
-        MIDI.Player.addListener((data: any) => {
-            if (data.message === 144) { // 144 corresponds to noteOn
-                console.log(`[${new Date().toISOString()}] MIDI event 'noteOn' triggered. Data:`, data);
-                midiHighlightingHandler(data, uniqueId);
-            }
+function midiHighlightingHandler(data: any, uniqueId: string) {
+    if (!window.VerovioToolkit) return;
+
+    const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
+    if (!container) return;
+
+    container.querySelectorAll('g.note.playing').forEach(note => note.classList.remove("playing"));
+
+    const currentTimeMillis = MIDI.Player.currentTime + 10;
+
+    // Instead of fetching MEI data from verovioDataMap, just use the existing Verovio data
+    const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
+
+    if (elements?.notes) {
+        elements.notes.forEach(noteId => {
+            const noteElement = container.querySelector(`g.note#${noteId}`);
+            if (noteElement) noteElement.classList.add("playing");
         });
-
-        console.log(`[${new Date().toISOString()}] MIDI highlighting handler attached successfully.`);
-    } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error attaching MIDI highlighting handler:`, error, error.stack);
     }
+
+    renderPage(uniqueId);
 }
 
 export { processVerovioCodeBlocks };
