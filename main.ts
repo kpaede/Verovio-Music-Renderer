@@ -35,7 +35,7 @@ export default class VerovioMusicRenderer extends Plugin {
         console.error("Error processing Verovio code block:", error);
       }
     });
-  }  // <-- Missing closing brace added here
+  }
 
   onunload() {
     console.log("Unloading Verovio Music Renderer plugin...");

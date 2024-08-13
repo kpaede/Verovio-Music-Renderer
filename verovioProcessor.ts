@@ -124,16 +124,17 @@ function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
 }
 
 function playIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+    return `&#9658;`; // Unicode for play button (▶)
 }
 
 function stopIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>`;
+    return `&#9632;`; // Unicode for stop button (■)
 }
 
 function downloadIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18L5.5 8.5 7 10l3-3v9h2V7l3 3 1.5-1.5L12 2z"/></svg>`;
+    return `&#8681;`; // Unicode for download arrow (⬇)
 }
+
 
 async function playMIDI(uniqueId: string) {
     try {
