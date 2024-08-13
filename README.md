@@ -20,8 +20,8 @@ And I would love to implement these as well (and would love some help)
 
 - Copy over `main.js`, `styles.css`, `manifest.json` from the release (look right) to your vault into a folder like this `VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/`.
 
-## Beware
-if you work with ths TS-Files, Audio playback requires changing the Soundfont path in node_modules/lz-midi/lib/midi.js to 	_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/'; (or something similar)
+## If you work with TS-Files from here, read this:
+- Audio playback requires changing the Soundfont path in node_modules/lz-midi/lib/midi.js to 	_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/'; (or something similar)
 
 
 ## Additionaly used
