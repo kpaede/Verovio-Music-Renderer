@@ -22,6 +22,7 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
+		"lz-midi": "^0.0.1",
 		"verovio": "^4.2.0"
 	}
 }
