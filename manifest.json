@@ -6,5 +6,6 @@
 	"description": "Rendering of music notation files.",
 	"author": "Kornelius Paede",
 	"authorUrl": "https://dramturgie.lol",
-	"isDesktopOnly": false
+	"isDesktopOnly": false,
+	"new-plugin-version": "minimum-obsidian-version"
 }
