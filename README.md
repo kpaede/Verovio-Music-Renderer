@@ -29,7 +29,7 @@ https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei
 
 ```
 
-or just use a filename from a file in your Obsidian vaul folder like this:
+or just use a filename from a file in your Obsidian Vault like this:
 
 ```
 COPY FROM HERE
