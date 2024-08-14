@@ -1,13 +1,13 @@
 import { App, Modal } from 'obsidian';
 
-export class SampleModal extends Modal {
+export class VerovioModal extends Modal {
   constructor(app: App) {
     super(app);
   }
 
   onOpen() {
     const { contentEl } = this;
-    contentEl.setText('Woah!');
+    contentEl.setText('Verovio is loaded!');
   }
 
   onClose() {

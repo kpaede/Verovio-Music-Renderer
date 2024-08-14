@@ -18,7 +18,9 @@ const highlightedNotesCache: Record<string, Set<string>> = {};
 
 async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
     if (!window.VerovioToolkit) {
-        el.innerHTML = `<p>Verovio is not yet loaded or failed to load.</p>`;
+        const errorMsg = document.createElement('p');
+        errorMsg.textContent = 'Verovio is not yet loaded or failed to load.';
+        el.appendChild(errorMsg);
         return;
     }
 
@@ -38,7 +40,9 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
         const container = createContainer(uniqueId);
         el.appendChild(container);
     } catch (error) {
-        el.innerHTML = `<p>Error rendering data: ${error.message}</p>`;
+        const errorMsg = document.createElement('p');
+        errorMsg.textContent = `Error rendering data: ${error.message}`;
+        el.appendChild(errorMsg);
     }
 }
 
@@ -81,7 +85,9 @@ function createContainer(uniqueId: string): HTMLDivElement {
     container.setAttribute("data-unique-id", uniqueId);
 
     const svg = window.VerovioToolkit.renderToSVG(currentPage);
-    container.innerHTML = svg;
+    const svgWrapper = document.createElement('div');
+    svgWrapper.appendChild(stringToElement(svg));
+    container.appendChild(svgWrapper);
 
     const toolbar = createToolbar(uniqueId);
     container.appendChild(toolbar);
@@ -93,8 +99,10 @@ function updateContainerSVG(uniqueId: string, svg: string) {
     const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
     if (!container) return;
 
+    const svgWrapper = container.querySelector('div');
+    svgWrapper?.replaceChildren(stringToElement(svg));
+
     const toolbar = container.querySelector('.verovio-toolbar');
-    container.innerHTML = svg;
     if (toolbar) container.appendChild(toolbar);
 }
 
@@ -270,6 +278,12 @@ function midiHighlightingHandler(data: any, uniqueId: string) {
             }
         });
     }
+}
+
+function stringToElement(svgString: string): HTMLElement {
+    const template = document.createElement('template');
+    template.innerHTML = svgString.trim();
+    return template.content.firstChild as HTMLElement;
 }
 
 export { processVerovioCodeBlocks };
