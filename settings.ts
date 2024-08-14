@@ -8,7 +8,7 @@ export interface VerovioPluginSettings {
   adjustPageWidth: boolean;
   breaks: string;
   pageWidth: number;
-  midiTempoAdjustment: number;
+  midiTempoAdjustment: 1.0;
   font: string;
 }
 
@@ -92,16 +92,6 @@ export class VerovioSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    new Setting(containerEl)
-      .setName('MIDI Tempo Adjustment')
-      .setDesc('Adjustment factor for MIDI tempo (not working)')
-      .addSlider(slider => slider
-        .setLimits(0.5, 2.0, 0.1)
-        .setValue(this.plugin.settings.midiTempoAdjustment)
-        .onChange(async (value) => {
-          this.plugin.settings.midiTempoAdjustment = value;
-          await this.plugin.saveSettings();
-        }));
 
     new Setting(containerEl)
       .setName('Font')
