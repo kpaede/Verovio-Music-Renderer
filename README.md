@@ -10,6 +10,7 @@ The plugin already has the following features:
 - a settings menu to change the rendering options
 - Sound playback of the rendered music
 - highlighting of the live playback notes, synced to the sound playback (still not reliably synced, though)
+- opening the rendered file via an external editor (if you want to exit your files outside of obsidian)
 
 And I would love to implement these as well (and would love some help)
 - the possibility to just render a selection of bars (as stated here https://book.verovio.org/interactive-notation/content-selection.html)
@@ -27,7 +28,7 @@ And I would love to implement these as well (and would love some help)
 
 
 ## Additionaly used (with many thanks)
-- [Verovio](https://github.com/rism-digital/verovio) – please support [RISM](https://rism.info/de/) for their amazing work
+- [Verovio](https://github.com/rism-digital/verovio) – please support [RISM](https://rism.digital/) and their amazing work
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
 I have just rudimentary programming skills and use mostly ChatGPT.
