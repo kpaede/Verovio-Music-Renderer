@@ -2,7 +2,7 @@
 
 ![](Verovio-Plugin.gif)
 
-This is a plugin for Obsidian (https://obsidian.md) that uses Verovio – a fast, portable and lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (and also ABC and MusicXML) into SVG.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (and also ABC and MusicXML files) into SVG. With this plugin you can render musical scores seamlessly within Obsidian and thus use it more efficiently when working with written music.
 
 The plugin already has the following features:
 - rendering MEI, ABC and MusicXML notation dynamically from the Obsidian folder (relative) and URLs (absolute)
@@ -12,11 +12,32 @@ The plugin already has the following features:
 - highlighting of the live playback notes, synced to the sound playback (still not reliably synced, though)
 - opening the rendered file via an external editor (if you want to exit your files outside of obsidian)
 
-And I would love to implement these as well (and would love some help)
+And I would love to implement these as well (and would love some help):
 - the possibility to just render a selection of bars (as stated here https://book.verovio.org/interactive-notation/content-selection.html)
 - the possibility to render not just URLs but also direct code like the ABCJS plugin https://github.com/abcjs-music/obsidian-plugin-abcjs
 - wide humdrum support
 
+## How to use
+
+Install the plugin. Then copy this into your Obsidian document
+
+```
+COPY FROM HERE
+```verovio
+https://www.verovio.org/examples/downloads/Schubert_Lindenbaum.mei
+```COPY UNTIL HERE
+
+```
+
+or just use a filename from a file in your Obsidian vaul folder like this:
+
+```
+COPY FROM HERE
+```verovio
+Schubert_Lindenbaum.mei
+```COPY UNTIL HERE
+
+```
 
 ## Manually installing the plugin
 
