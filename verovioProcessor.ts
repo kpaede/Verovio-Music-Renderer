@@ -266,7 +266,7 @@ function midiHighlightingHandler(data: any, uniqueId: string) {
     const noteSet = highlightedNotesCache[uniqueId];
     container.querySelectorAll('g.note.playing').forEach(note => note.classList.remove("playing"));
 
-    const currentTimeMillis = MIDI.Player.currentTime;
+    const currentTimeMillis = MIDI.Player.currentTime ;
     const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
 
     if (elements?.notes) {
