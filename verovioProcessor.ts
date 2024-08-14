@@ -183,11 +183,11 @@ async function playMIDI(uniqueId: string) {
         const midiDataUrl = 'data:audio/midi;base64,' + midiData;
 
         MIDI.Player.stop();
+        MIDI.Player.BPM = null;
         MIDI.Player.loadFile(midiDataUrl, () => {
             MIDI.Player.start();
             attachMIDIHighlighting(uniqueId);
         });
-        MIDI.Player.BPM = null;
     } catch (error) {
         console.error(`Error playing MIDI for ${uniqueId}: ${error.message}`);
     }
