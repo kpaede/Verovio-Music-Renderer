@@ -8,7 +8,6 @@ export interface VerovioPluginSettings {
   adjustPageWidth: boolean;
   breaks: string;
   pageWidth: number;
-  midiTempoAdjustment: 1.0;
   font: string;
 }
 
@@ -19,7 +18,6 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   adjustPageWidth: true,
   breaks: 'auto',
   pageWidth: 700,
-  midiTempoAdjustment: 1.0,
   font: 'Leland' // Default font
 }
 

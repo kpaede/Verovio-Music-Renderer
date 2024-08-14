@@ -187,6 +187,7 @@ async function playMIDI(uniqueId: string) {
             MIDI.Player.start();
             attachMIDIHighlighting(uniqueId);
         });
+        MIDI.Player.BPM = null;
     } catch (error) {
         console.error(`Error playing MIDI for ${uniqueId}: ${error.message}`);
     }
