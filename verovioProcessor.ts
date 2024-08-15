@@ -337,7 +337,7 @@ function dehighlightNoteHandler(data: any, uniqueId: string) {
     const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
     if (!container) return;
 
-    const currentTimeMillis = MIDI.Player.currentTime - 0.5; // Modify offset if necessary
+    const currentTimeMillis = MIDI.Player.currentTime - 0.5; // Modify offset if necessary!
     const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
 
     if (elements?.notes) {
