@@ -18,6 +18,7 @@ The plugin currently has the following features:
 - Humdrum support.
 - Page turning.
 - Bugfixing (especially highlighting timing).
+- Making the buttons for playback, download and opening externally work in the mobile version of Obsidian.
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
@@ -85,6 +86,9 @@ measureRange: 1-20
 I have just rudimentary programming skills and use mostly ChatGPT.
 
 ## FAQ
+
+Q: Is it working with the mobile versions of Obsidian?
+A: Yes, but the button's dont work (yet).
 
 Q: The "folder" icon doesn't open anything.
 A: You need to define a default openinng application for that filetype.
