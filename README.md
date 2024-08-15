@@ -1,6 +1,7 @@
 # Verovio Music Renderer for Obsidian
 
 ![](Verovio-Plugin.gif)
+
 This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC and MusicXML files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
@@ -9,7 +10,7 @@ The plugin currently has the following features:
 - A settings menu to adjust various rendering options.
 - Sound playback of the rendered music.
 - Highlighting of live playback notes, synced to the sound playback (syncing is still not fully reliable, though).
-- Opening the rendered file via an external editor (if you want to edit your files outside of Obsidian).
+- Opening the rendered file via an external editor (if you want to edit your files with one click).
 - Rendering specific measure selections.
 
 ### Future Features (Help Wanted):
@@ -90,3 +91,6 @@ A: You need to define a default openinng application for that filetype.
 
 Q: When I use "measureRange" it just renders a blank box.
 A: Change the breaks type (also in the plugin options).
+
+Q: I don't hear anything and playback isn't starting.
+A: You need to be connected to the internet to load the Soundfont for playback. It won't start offline (and note highlighting won't either).
