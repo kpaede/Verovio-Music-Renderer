@@ -43,9 +43,9 @@ Schubert_Lindenbaum.mei
 
 - Copy over `main.js`, `styles.css`, `manifest.json` from the release (look right) to your vault into a folder like this `VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/`.
 
-## If you are cloning this project,read this:
-- Audio playback requires changing the Soundfont path in /node_modules/lz-midi/lib/midi.js to the following (Starting from line 131):
-	`_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';`
+## If you are cloning this project, read this:
+- Audio playback requires changing the `_root2.default.soundfontUrl =` in /node_modules/lz-midi/lib/midi.js to the following (or a different) URL like this: `_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';`
+I am using [Paul Rosens midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts)
 
 
 ## Additionaly used (with many thanks)

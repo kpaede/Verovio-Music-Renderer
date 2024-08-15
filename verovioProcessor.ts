@@ -12,7 +12,6 @@ const sourceMap: Record<string, string> = {};
 
 let currentPage = 1;
 let currentElements: { page: number, uniqueId: string } = { page: 1, uniqueId: '' };
-let lastHighlightedTime: number = 0;
 const highlightInterval = 50; // Throttle interval in milliseconds
 const highlightedNotesCache: Record<string, Set<string>> = {};
 
@@ -76,7 +75,7 @@ function isValidUrl(url: string): boolean {
 }
 
 function generateUniqueId(): string {
-    return `rendering-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `rendering-${performance.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 function createContainer(uniqueId: string): HTMLDivElement {
@@ -181,7 +180,6 @@ async function playMIDI(uniqueId: string) {
         if (!midiData) throw new Error('Failed to generate MIDI data.');
 
         const midiDataUrl = 'data:audio/midi;base64,' + midiData;
-
         MIDI.Player.stop();
         MIDI.Player.BPM = null;
         MIDI.Player.loadFile(midiDataUrl, () => {
@@ -192,6 +190,7 @@ async function playMIDI(uniqueId: string) {
         console.error(`Error playing MIDI for ${uniqueId}: ${error.message}`);
     }
 }
+
 
 async function reloadVerovioData(uniqueId: string) {
     try {
@@ -245,37 +244,56 @@ async function downloadSVG(event: MouseEvent) {
 
 function attachMIDIHighlighting(uniqueId: string) {
     MIDI.Player.addListener((data: any) => {
-        const now = Date.now();
-        if (data.message === 144 && now - lastHighlightedTime >= highlightInterval) {
-            midiHighlightingHandler(data, uniqueId);
-            lastHighlightedTime = now;
+        if (data.message === 144) { // Note On message
+            highlightNoteHandler(data, uniqueId);
+        } else if (data.message === 128) { // Note Off message
+            dehighlightNoteHandler(data, uniqueId);
         }
     });
 }
 
-function midiHighlightingHandler(data: any, uniqueId: string) {
+function highlightNoteHandler(data: any, uniqueId: string) {
     if (!window.VerovioToolkit) return;
 
     const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
     if (!container) return;
 
-    // Use cache to minimize DOM access
-    if (!highlightedNotesCache[uniqueId]) {
-        highlightedNotesCache[uniqueId] = new Set();
+    const currentTimeMillis = MIDI.Player.currentTime + 33.5; // Modify offset if necessary
+    console.log(`Checking for notes at time: ${currentTimeMillis}`);
+
+    const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
+
+    if (elements?.notes && elements.notes.length > 0) {
+        console.log(`Notes found at time ${currentTimeMillis}:`, elements.notes);
+        elements.notes.forEach(noteId => {
+            const noteElement = container.querySelector(`g.note#${noteId}`);
+            if (noteElement) {
+                console.log(`Highlighting note ${noteId} at time ${currentTimeMillis}`);
+                noteElement.classList.add("playing");
+            } else {
+                console.warn(`Note element with ID ${noteId} not found in the container.`);
+            }
+        });
+    } else {
+        console.log(`No notes found at time ${currentTimeMillis}.`);
     }
+}
 
-    const noteSet = highlightedNotesCache[uniqueId];
-    container.querySelectorAll('g.note.playing').forEach(note => note.classList.remove("playing"));
 
-    const currentTimeMillis = MIDI.Player.currentTime ;
+function dehighlightNoteHandler(data: any, uniqueId: string) {
+    if (!window.VerovioToolkit) return;
+
+    const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
+    if (!container) return;
+
+    const currentTimeMillis = MIDI.Player.currentTime - 0.5; // Modify offset if necessary
     const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
 
     if (elements?.notes) {
         elements.notes.forEach(noteId => {
             const noteElement = container.querySelector(`g.note#${noteId}`);
-            if (noteElement && !noteSet.has(noteId)) {
-                noteElement.classList.add("playing");
-                noteSet.add(noteId);
+            if (noteElement) {
+                noteElement.classList.remove("playing");
             }
         });
     }
