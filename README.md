@@ -39,6 +39,21 @@ Schubert_Lindenbaum.mei
 
 ```
 
+## Options
+In the settings of the Obsidian plugin you can adapt a couple of important parameters globally for all renderings. You can also apply custom settings for a specific rendering by adding them like this:
+
+```
+COPY FROM HERE
+```verovio
+Schubert_Lindenbaum.mei
+font: Leland
+scale: 10
+breaks: encoded
+```COPY UNTIL HERE
+
+```
+Please refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) to see your display options. Not all might work, though.
+
 ## Manually installing the plugin
 
 - Copy over `main.js`, `styles.css`, `manifest.json` from the release (look right) to your vault into a folder like this `VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/`.

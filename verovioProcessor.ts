@@ -4,9 +4,6 @@ import { exec } from 'child_process';
 import { TFile } from 'obsidian';
 import * as os from 'os';
 
-// Import settings and utilities
-import { VerovioPluginSettings, DEFAULT_SETTINGS } from './settings';
-
 // Maps for storing source paths
 const sourceMap: Record<string, string> = {};
 
@@ -24,14 +21,22 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
     }
 
     try {
-        const data = await fetchFileData(source.trim());
-        window.VerovioToolkit.setOptions(this.settings);
+        // Extract the file path and any options specified in the code block
+        const { filePath, options } = extractFilePathAndOptions(source.trim());
+
+        // Fetch the file data
+        const data = await fetchFileData(filePath);
+        window.VerovioToolkit.setOptions({
+            ...this.settings,
+            ...options // Apply custom options here
+        });
+
         window.VerovioToolkit.loadData(data);
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
         window.VerovioToolkit.loadData(meiData);
 
         const uniqueId = generateUniqueId();
-        sourceMap[uniqueId] = source;
+        sourceMap[uniqueId] = filePath;
 
         currentElements = { page: 1, uniqueId };
         renderPage(uniqueId);
@@ -44,6 +49,32 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
         el.appendChild(errorMsg);
     }
 }
+
+function extractFilePathAndOptions(source: string): { filePath: string, options: Record<string, any> } {
+    const lines = source.split('\n');
+    const filePath = lines[0].trim();
+    const options: Record<string, any> = {};
+
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line) {
+            const [key, value] = line.split(':').map(part => part.trim());
+            if (key && value) {
+                options[key] = parseOptionValue(value);
+            }
+        }
+    }
+
+    return { filePath, options };
+}
+
+function parseOptionValue(value: string): any {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (!isNaN(Number(value))) return Number(value);
+    return value;
+}
+
 
 function renderPage(uniqueId: string) {
     if (currentElements.page !== currentPage) {
@@ -197,14 +228,29 @@ async function reloadVerovioData(uniqueId: string) {
         const source = findSourcePathByUniqueId(uniqueId);
         if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
 
-        const data = await fetchFileData(source.trim());
+        // Extract file path and options just like in the initial rendering
+        const { filePath, options } = extractFilePathAndOptions(source);
+
+        const data = await fetchFileData(filePath.trim());
         if (!data) throw new Error('Failed to fetch file data.');
+
+        window.VerovioToolkit.setOptions({
+            ...this.settings,
+            ...options // Apply custom options here
+        });
+
+        // Preserve the current page number before reloading the data
+        const currentPageBeforeReload = currentPage;
 
         window.VerovioToolkit.loadData(data);
         const meiDataWithLayout = window.VerovioToolkit.getMEI({ noLayout: false });
         if (!meiDataWithLayout) throw new Error('Failed to retrieve MEI data with layout.');
+        
 
         window.VerovioToolkit.loadData(meiDataWithLayout);
+
+        // Render the preserved page instead of starting from page 1
+        currentPage = currentPageBeforeReload;
         const svg = window.VerovioToolkit.renderToSVG(currentPage);
         if (!svg) throw new Error('Failed to render SVG.');
 
@@ -214,6 +260,8 @@ async function reloadVerovioData(uniqueId: string) {
         console.error(`Error reloading Verovio data: ${error.message}`, error);
     }
 }
+
+
 
 function findSourcePathByUniqueId(uniqueId: string): string | undefined {
     return sourceMap[uniqueId];
