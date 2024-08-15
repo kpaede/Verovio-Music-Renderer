@@ -16,6 +16,7 @@ The plugin currently has the following features:
 - The ability to render not just from URLs but also direct code, similar to the [ABCJS plugin](https://github.com/abcjs-music/obsidian-plugin-abcjs).
 - Humdrum support.
 - Page turning.
+- Bugfixing (especially highlighting timing).
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
