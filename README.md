@@ -14,7 +14,8 @@ The plugin currently has the following features:
 
 ### Future Features (Help Wanted):
 - The ability to render not just from URLs but also direct code, similar to the [ABCJS plugin](https://github.com/abcjs-music/obsidian-plugin-abcjs).
-- Wide Humdrum support.
+- Humdrum support.
+- Page turning.
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
