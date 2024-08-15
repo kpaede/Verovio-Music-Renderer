@@ -4,8 +4,9 @@ import { exec } from 'child_process';
 import { TFile } from 'obsidian';
 import * as os from 'os';
 
-// Maps for storing source paths
+// Maps for storing source paths and custom options
 const sourceMap: Record<string, string> = {};
+const optionsMap: Record<string, Record<string, any>> = {};
 
 let currentPage = 1;
 let currentElements: { page: number, uniqueId: string } = { page: 1, uniqueId: '' };
@@ -21,35 +22,39 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
     }
 
     try {
+        // Extract the file path and any options specified in the code block
         const { filePath, options } = extractFilePathAndOptions(source.trim());
 
+        // Fetch the file data
         const data = await fetchFileData(filePath);
-        window.VerovioToolkit.setOptions({
-            ...this.settings,
-            ...options
-        });
+
+        // Backup the current global settings to restore them later
+        const originalSettings = { ...this.settings };
+
+        // Apply custom options for this rendering
+        const appliedOptions = {
+            ...this.settings,   // Default settings
+            ...options          // Override with custom options from code block
+        };
+        window.VerovioToolkit.setOptions(appliedOptions);
 
         window.VerovioToolkit.loadData(data);
-
-        // Apply measureRange selection if specified
-        if (options.measureRange) {
-            window.VerovioToolkit.select({ measureRange: options.measureRange });
-        } else {
-            // Clear any previous selection if measureRange is not provided
-            window.VerovioToolkit.select({});
-        }
-
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
         window.VerovioToolkit.loadData(meiData);
 
         const uniqueId = generateUniqueId();
         sourceMap[uniqueId] = filePath;
+        optionsMap[uniqueId] = appliedOptions; // Store custom options for later use
 
         currentElements = { page: 1, uniqueId };
         renderPage(uniqueId);
 
         const container = createContainer(uniqueId);
         el.appendChild(container);
+
+        // Restore the original settings after rendering
+        window.VerovioToolkit.setOptions(originalSettings);
+
     } catch (error) {
         const errorMsg = document.createElement('p');
         errorMsg.textContent = `Error rendering data: ${error.message}`;
@@ -57,6 +62,39 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
     }
 }
 
+async function reloadVerovioData(uniqueId: string) {
+    try {
+        const source = findSourcePathByUniqueId(uniqueId);
+        const options = optionsMap[uniqueId];  // Retrieve custom options
+
+        if (!source || !options) throw new Error(`Source path or options not found for uniqueId: ${uniqueId}`);
+
+        const data = await fetchFileData(source.trim());
+        if (!data) throw new Error('Failed to fetch file data.');
+
+        // Apply custom options for this reload
+        window.VerovioToolkit.setOptions(options);
+
+        // Preserve the current page number before reloading the data
+        const currentPageBeforeReload = currentPage;
+
+        window.VerovioToolkit.loadData(data);
+        const meiDataWithLayout = window.VerovioToolkit.getMEI({ noLayout: false });
+        if (!meiDataWithLayout) throw new Error('Failed to retrieve MEI data with layout.');
+
+        window.VerovioToolkit.loadData(meiDataWithLayout);
+
+        // Render the preserved page instead of starting from page 1
+        currentPage = currentPageBeforeReload;
+        const svg = window.VerovioToolkit.renderToSVG(currentPage);
+        if (!svg) throw new Error('Failed to render SVG.');
+        updateContainerSVG(uniqueId, svg);
+
+        console.log('Verovio data reloaded successfully.');
+    } catch (error) {
+        console.error(`Error reloading Verovio data: ${error.message}`, error);
+    }
+}
 
 function extractFilePathAndOptions(source: string): { filePath: string, options: Record<string, any> } {
     const lines = source.split('\n');
@@ -73,14 +111,8 @@ function extractFilePathAndOptions(source: string): { filePath: string, options:
         }
     }
 
-    // Ensure measureRange is passed as a string, not a number
-    if (options['measureRange'] && typeof options['measureRange'] === 'number') {
-        options['measureRange'] = String(options['measureRange']);
-    }
-
     return { filePath, options };
 }
-
 
 function parseOptionValue(value: string): any {
     if (value === 'true') return true;
@@ -88,7 +120,6 @@ function parseOptionValue(value: string): any {
     if (!isNaN(Number(value))) return Number(value);
     return value;
 }
-
 
 function renderPage(uniqueId: string) {
     if (currentElements.page !== currentPage) {
@@ -236,52 +267,6 @@ async function playMIDI(uniqueId: string) {
     }
 }
 
-
-async function reloadVerovioData(uniqueId: string) {
-    try {
-        const source = findSourcePathByUniqueId(uniqueId);
-        if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
-
-        const { filePath, options } = extractFilePathAndOptions(source);
-
-        const data = await fetchFileData(filePath.trim());
-        if (!data) throw new Error('Failed to fetch file data.');
-
-        window.VerovioToolkit.setOptions({
-            ...this.settings,
-            ...options
-        });
-
-        const currentPageBeforeReload = currentPage;
-
-        window.VerovioToolkit.loadData(data);
-
-        // Reapply measureRange if it exists
-        if (options.measureRange) {
-            window.VerovioToolkit.select({ measureRange: options.measureRange });
-        } else {
-            window.VerovioToolkit.select({});
-        }
-
-        const meiDataWithLayout = window.VerovioToolkit.getMEI({ noLayout: false });
-        if (!meiDataWithLayout) throw new Error('Failed to retrieve MEI data with layout.');
-
-        window.VerovioToolkit.loadData(meiDataWithLayout);
-
-        currentPage = currentPageBeforeReload;
-        const svg = window.VerovioToolkit.renderToSVG(currentPage);
-        if (!svg) throw new Error('Failed to render SVG.');
-
-        updateContainerSVG(uniqueId, svg);
-        console.log('Verovio data reloaded successfully.');
-    } catch (error) {
-        console.error(`Error reloading Verovio data: ${error.message}`, error);
-    }
-}
-
-
-
-
 function findSourcePathByUniqueId(uniqueId: string): string | undefined {
     return sourceMap[uniqueId];
 }
@@ -345,7 +330,6 @@ function highlightNoteHandler(data: any, uniqueId: string) {
         console.log(`No notes found at time ${currentTimeMillis}.`);
     }
 }
-
 
 function dehighlightNoteHandler(data: any, uniqueId: string) {
     if (!window.VerovioToolkit) return;
