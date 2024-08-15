@@ -21,17 +21,24 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
     }
 
     try {
-        // Extract the file path and any options specified in the code block
         const { filePath, options } = extractFilePathAndOptions(source.trim());
 
-        // Fetch the file data
         const data = await fetchFileData(filePath);
         window.VerovioToolkit.setOptions({
             ...this.settings,
-            ...options // Apply custom options here
+            ...options
         });
 
         window.VerovioToolkit.loadData(data);
+
+        // Apply measureRange selection if specified
+        if (options.measureRange) {
+            window.VerovioToolkit.select({ measureRange: options.measureRange });
+        } else {
+            // Clear any previous selection if measureRange is not provided
+            window.VerovioToolkit.select({});
+        }
+
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
         window.VerovioToolkit.loadData(meiData);
 
@@ -50,6 +57,7 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
     }
 }
 
+
 function extractFilePathAndOptions(source: string): { filePath: string, options: Record<string, any> } {
     const lines = source.split('\n');
     const filePath = lines[0].trim();
@@ -65,8 +73,14 @@ function extractFilePathAndOptions(source: string): { filePath: string, options:
         }
     }
 
+    // Ensure measureRange is passed as a string, not a number
+    if (options['measureRange'] && typeof options['measureRange'] === 'number') {
+        options['measureRange'] = String(options['measureRange']);
+    }
+
     return { filePath, options };
 }
+
 
 function parseOptionValue(value: string): any {
     if (value === 'true') return true;
@@ -228,7 +242,6 @@ async function reloadVerovioData(uniqueId: string) {
         const source = findSourcePathByUniqueId(uniqueId);
         if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
 
-        // Extract file path and options just like in the initial rendering
         const { filePath, options } = extractFilePathAndOptions(source);
 
         const data = await fetchFileData(filePath.trim());
@@ -236,20 +249,25 @@ async function reloadVerovioData(uniqueId: string) {
 
         window.VerovioToolkit.setOptions({
             ...this.settings,
-            ...options // Apply custom options here
+            ...options
         });
 
-        // Preserve the current page number before reloading the data
         const currentPageBeforeReload = currentPage;
 
         window.VerovioToolkit.loadData(data);
+
+        // Reapply measureRange if it exists
+        if (options.measureRange) {
+            window.VerovioToolkit.select({ measureRange: options.measureRange });
+        } else {
+            window.VerovioToolkit.select({});
+        }
+
         const meiDataWithLayout = window.VerovioToolkit.getMEI({ noLayout: false });
         if (!meiDataWithLayout) throw new Error('Failed to retrieve MEI data with layout.');
-        
 
         window.VerovioToolkit.loadData(meiDataWithLayout);
 
-        // Render the preserved page instead of starting from page 1
         currentPage = currentPageBeforeReload;
         const svg = window.VerovioToolkit.renderToSVG(currentPage);
         if (!svg) throw new Error('Failed to render SVG.');
@@ -260,6 +278,7 @@ async function reloadVerovioData(uniqueId: string) {
         console.error(`Error reloading Verovio data: ${error.message}`, error);
     }
 }
+
 
 
 
