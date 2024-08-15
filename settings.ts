@@ -2,7 +2,6 @@ import { App, PluginSettingTab, Setting } from 'obsidian';
 import VerovioMusicRenderer from './main';
 
 export interface VerovioPluginSettings {
-  mySetting: string;
   scale: number;
   adjustPageHeight: boolean;
   adjustPageWidth: boolean;
@@ -12,7 +11,6 @@ export interface VerovioPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: VerovioPluginSettings = {
-  mySetting: 'default',
   scale: 100,
   adjustPageHeight: true,
   adjustPageWidth: true,

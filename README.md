@@ -39,7 +39,7 @@ Schubert_Lindenbaum.mei
 
 ```
 
-## Options
+## Rendering Options
 In the settings of the Obsidian plugin you can adapt a couple of important parameters globally for all renderings. You can also apply custom settings for a specific rendering by adding them like this:
 
 ```
@@ -53,6 +53,21 @@ breaks: encoded
 
 ```
 Please refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) to see your display options. Not all might work, though.
+
+## Rendering measure selections
+A special feature of this plugin is rendering predefined measures. So to just render measures 1-10, you can use the command "measureRange like here. Please note: In this example, measure 20 is not included in the rendering. Also the type of breaks you choose to render have great influece, e.g. "encoded" breaks can lead to a blank rendering, because there is no encoded break in your selection. Because of that, "breaks: none" is added to this example, which might be a good default option for rendering musical snippets.
+
+```
+COPY FROM HERE
+```verovio
+Schubert_Lindenbaum.mei
+scale: 50
+breaks: none
+measureRange: 1-20
+```COPY UNTIL HERE
+
+```
+
 
 ## Manually installing the plugin
 
