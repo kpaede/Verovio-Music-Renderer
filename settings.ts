@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   adjustPageWidth: true,
   breaks: 'auto',
   pageWidth: 700,
-  font: 'Leland' // Default font
+  font: 'Leland'
 }
 
 export class VerovioSettingTab extends PluginSettingTab {

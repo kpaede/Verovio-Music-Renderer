@@ -15,12 +15,10 @@ export default class VerovioMusicRenderer extends Plugin {
   settings: VerovioPluginSettings;
 
   async onload() {
-    console.log("Loading Verovio Music Renderer plugin...");
     addVerovioStyles();
 
     try {
       await loadVerovio();
-      console.log("Verovio loaded successfully.");
     } catch (error) {
       console.error("Failed to load Verovio library:", error);
     }
@@ -35,10 +33,6 @@ export default class VerovioMusicRenderer extends Plugin {
         console.error("Error processing Verovio code block:", error);
       }
     });
-  }
-
-  onunload() {
-    console.log("Unloading Verovio Music Renderer plugin...");
   }
 
   async loadSettings() {

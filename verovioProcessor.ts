@@ -25,11 +25,9 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
     try {
         // Extract the file path, options, and measureRange
         const { filePath, options, measureRange } = extractFilePathAndOptions(source.trim());
-        console.log(`Processing Verovio block with file: ${filePath}, options: ${JSON.stringify(options)}, measureRange: ${measureRange}`);
 
         // Fetch the file data
         const data = await fetchFileData(filePath);
-        console.log(`Fetched file data for ${filePath}. Data length: ${data.length}`);
 
         // Backup the current global settings to restore them later
         const originalSettings = { ...this.settings };
@@ -39,27 +37,20 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
             ...this.settings,   // Default settings
             ...options          // Override with custom options from code block
         };
-        console.log(`Applied options: ${JSON.stringify(appliedOptions)}`);
         window.VerovioToolkit.setOptions(appliedOptions);
 
         window.VerovioToolkit.loadData(data);
-        console.log('Loaded data into Verovio Toolkit.');
 
         // Apply measureRange using the select method
         if (measureRange) {
-            console.log(`Attempting to apply measureRange: ${measureRange}`);
             const success = window.VerovioToolkit.select({ measureRange });
             if (!success) {
-                console.error(`Failed to apply measureRange: ${measureRange}`);
                 throw new Error(`Failed to apply measureRange: ${measureRange}`);
-            } else {
-                console.log(`Successfully applied measureRange: ${measureRange}`);
             }
         }
 
         const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
         window.VerovioToolkit.loadData(meiData);
-        console.log('MEI data processed with layout.');
 
         const uniqueId = generateUniqueId();
         sourceMap[uniqueId] = filePath;
@@ -71,13 +62,11 @@ async function processVerovioCodeBlocks(this: VerovioMusicRenderer, source: stri
 
         const container = createContainer(uniqueId);
         el.appendChild(container);
-        console.log(`Rendered page and added to DOM for uniqueId: ${uniqueId}`);
 
         // Restore the original settings after rendering
         window.VerovioToolkit.setOptions(originalSettings);
 
     } catch (error) {
-        console.error(`Error rendering data: ${error.message}`, error);
         const errorMsg = document.createElement('p');
         errorMsg.textContent = `Error rendering data: ${error.message}`;
         el.appendChild(errorMsg);
@@ -94,7 +83,6 @@ async function reloadVerovioData(uniqueId: string) {
 
         const data = await fetchFileData(source.trim());
         if (!data) throw new Error('Failed to fetch file data.');
-        console.log(`Reloading Verovio data for ${source}. Data length: ${data.length}`);
 
         // Apply custom options for this reload
         window.VerovioToolkit.setOptions(options);
@@ -106,30 +94,24 @@ async function reloadVerovioData(uniqueId: string) {
 
         // Reapply measureRange
         if (measureRange) {
-            console.log(`Reapplying measureRange: ${measureRange}`);
             const success = window.VerovioToolkit.select({ measureRange });
             if (!success) {
-                console.error(`Failed to reapply measureRange: ${measureRange}`);
                 throw new Error(`Failed to reapply measureRange: ${measureRange}`);
-            } else {
-                console.log(`Successfully reapplied measureRange: ${measureRange}`);
             }
         }
 
         const meiDataWithLayout = window.VerovioToolkit.getMEI({ noLayout: false });
         if (!meiDataWithLayout) throw new Error('Failed to retrieve MEI data with layout.');
         window.VerovioToolkit.loadData(meiDataWithLayout);
-        console.log('MEI data reloaded with layout.');
 
         // Render the preserved page instead of starting from page 1
         currentPage = currentPageBeforeReload;
         const svg = window.VerovioToolkit.renderToSVG(currentPage);
         if (!svg) throw new Error('Failed to render SVG.');
         updateContainerSVG(uniqueId, svg);
-        console.log('SVG rendered and updated in container.');
 
     } catch (error) {
-        console.error(`Error reloading Verovio data: ${error.message}`, error);
+        console.error(`Error reloading Verovio data: ${error.message}`);
     }
 }
 
@@ -248,7 +230,6 @@ async function openFileExternally(uniqueId: string) {
         if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
 
         const absoluteFilePath = app.vault.adapter.getFullPath(file.path);
-        console.log(`Trying to open file at: ${absoluteFilePath}`);
 
         const platform = os.platform();
         let command = '';
@@ -260,11 +241,9 @@ async function openFileExternally(uniqueId: string) {
             default: throw new Error('Unsupported OS');
         }
 
-        console.log(`Executing command: ${command}`);
         exec(command, (error, stdout, stderr) => {
             if (error) console.error(`Execution error: ${error.message}`);
             if (stderr) console.error(`Execution stderr: ${stderr}`);
-            console.log(`Execution stdout: ${stdout}`);
         });
     } catch (error) {
         console.error(`Error opening file externally: ${error.message}`);
@@ -353,23 +332,16 @@ function highlightNoteHandler(data: any, uniqueId: string) {
     if (!container) return;
 
     const currentTimeMillis = MIDI.Player.currentTime + 33.5; // Modify offset if necessary
-    console.log(`Checking for notes at time: ${currentTimeMillis}`);
 
     const elements = window.VerovioToolkit.getElementsAtTime(currentTimeMillis);
 
     if (elements?.notes && elements.notes.length > 0) {
-        console.log(`Notes found at time ${currentTimeMillis}:`, elements.notes);
         elements.notes.forEach(noteId => {
             const noteElement = container.querySelector(`g.note#${noteId}`);
             if (noteElement) {
-                console.log(`Highlighting note ${noteId} at time ${currentTimeMillis}`);
                 noteElement.classList.add("playing");
-            } else {
-                console.warn(`Note element with ID ${noteId} not found in the container.`);
             }
         });
-    } else {
-        console.log(`No notes found at time ${currentTimeMillis}.`);
     }
 }
 
