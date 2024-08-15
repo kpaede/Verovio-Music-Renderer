@@ -82,3 +82,11 @@ measureRange: 1-20
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
 I have just rudimentary programming skills and use mostly ChatGPT.
+
+## FAQ
+
+Q: The "folder" icon doesn't open anything.
+A: You need to define a default openinng application for that filetype.
+
+Q: When I use "measureRange" it just renders a blank box.
+A: Change the breaks type (also in the plugin options).
