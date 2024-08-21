@@ -71,9 +71,9 @@ measureRange: 1-20
 
 ```
 
-## Manually Installing the Plugin
-
-- Copy main.js and manifest.json from the release (look right) to your vault into a folder like this: VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/.
+## Installing the Plugin
+This plugin is not yet part of the Obsidian community plugins. You can install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (just add the URL you're on right now as a beta plugin).
+You can also do it manually: Copy the files main.js and manifest.json from the release (look right) into the plugin folder of your vault like this: VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/.
 
 ## If You Are Cloning This Project, Read This:
 - Audio playback requires changing the _root2.default.soundfontUrl = in /node_modules/lz-midi/lib/midi.js to the following (or a different) URL like this: _root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';. I am using [Paul Rosens midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts)
