@@ -32,7 +32,7 @@ export class VerovioSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName('Adjust Rendering Height automatically')
+      .setName('Adjust rendering height automatically')
       .setDesc('Disables other sizing options automatically')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.adjustPageHeight)
@@ -42,7 +42,7 @@ export class VerovioSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('Adjust Rendering Width automatically')
+      .setName('Adjust rendering width automatically')
       .setDesc('Disables other sizing options automatically')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.adjustPageWidth)
@@ -78,7 +78,7 @@ export class VerovioSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('Page Width')
+      .setName('Page width')
       .setDesc('Width of the Rendering')
       .addSlider(slider => slider
         .setLimits(100, 8800, 50)
