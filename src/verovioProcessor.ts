@@ -1,14 +1,12 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
-import { exec } from 'child_process';
 import { TFile } from 'obsidian';
-import * as os from 'os';
+import { Platform, Notice } from 'obsidian';
 
 // Maps for storing source paths and custom options
 const sourceMap: Record<string, string> = {};
 const optionsMap: Record<string, Record<string, any>> = {};
 const measureRangeMap: Record<string, string> = {};
-
 let currentPage = 1;
 let currentElements: { page: number, uniqueId: string } = { page: 1, uniqueId: '' };
 const highlightInterval = 50; // Throttle interval in milliseconds
@@ -221,34 +219,46 @@ function openIcon(): string {
     return `&#128194;`; // Unicode for a folder icon (📂)
 }
 
+import { Platform, Notice } from 'obsidian'; // Import Obsidian's Platform API
+
 async function openFileExternally(uniqueId: string) {
-    try {
-        const source = findSourcePathByUniqueId(uniqueId);
-        if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
+    if (Platform.isDesktop) {
+        try {
+            // Dynamically import 'child_process' and 'os' only on desktop
+            const { exec } = await import('child_process');
+            const os = await import('os');
 
-        const file = app.vault.getAbstractFileByPath(source.trim());
-        if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
+            const source = findSourcePathByUniqueId(uniqueId);
+            if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
 
-        const absoluteFilePath = app.vault.adapter.getFullPath(file.path);
+            const file = app.vault.getAbstractFileByPath(source.trim());
+            if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
 
-        const platform = os.platform();
-        let command = '';
+            const absoluteFilePath = app.vault.adapter.getFullPath(file.path);
 
-        switch (platform) {
-            case 'win32': command = `start "" "${absoluteFilePath}"`; break;
-            case 'darwin': command = `open "${absoluteFilePath}"`; break;
-            case 'linux': command = `xdg-open "${absoluteFilePath}"`; break;
-            default: throw new Error('Unsupported OS');
+            const platform = os.platform();
+            let command = '';
+
+            switch (platform) {
+                case 'win32': command = `start "" "${absoluteFilePath}"`; break;
+                case 'darwin': command = `open "${absoluteFilePath}"`; break;
+                case 'linux': command = `xdg-open "${absoluteFilePath}"`; break;
+                default: throw new Error('Unsupported OS');
+            }
+
+            exec(command, (error, stdout, stderr) => {
+                if (error) console.error(`Execution error: ${error.message}`);
+                if (stderr) console.error(`Execution stderr: ${stderr}`);
+            });
+        } catch (error) {
+            console.error(`Error opening file externally: ${error.message}`);
         }
-
-        exec(command, (error, stdout, stderr) => {
-            if (error) console.error(`Execution error: ${error.message}`);
-            if (stderr) console.error(`Execution stderr: ${stderr}`);
-        });
-    } catch (error) {
-        console.error(`Error opening file externally: ${error.message}`);
+    } else {
+        // Show a notice on mobile, since this functionality is not supported
+        new Notice("Opening files externally is not supported on mobile.");
     }
 }
+
 
 function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
     const button = document.createElement("button");
@@ -297,6 +307,13 @@ function stopMIDI() {
 }
 
 async function downloadSVG(event: MouseEvent) {
+    if (Platform.isMobile) {
+        // Show a notice on mobile since file download is not supported
+        new Notice("Downloading files is not supported on mobile.");
+        return;
+    }
+
+    // Desktop download logic
     const container = (event.target as HTMLElement).closest(".verovio-container");
     if (!container) return;
 
@@ -314,6 +331,7 @@ async function downloadSVG(event: MouseEvent) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
 
 function attachMIDIHighlighting(uniqueId: string) {
     MIDI.Player.addListener((data: any) => {
