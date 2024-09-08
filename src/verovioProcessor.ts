@@ -1,7 +1,8 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
-import { TFile } from 'obsidian';
-import { Platform, Notice } from 'obsidian';
+import { TFile, Platform, Notice } from 'obsidian';
+
+
 
 // Maps for storing source paths and custom options
 const sourceMap: Record<string, string> = {};
@@ -158,7 +159,7 @@ async function fetchFileData(path: string): Promise<string> {
         return await response.text();
     }
 
-    const file = app.vault.getAbstractFileByPath(path);
+    const file = this.app.vault.getAbstractFileByPath(path);
 
     // Check if the file exists and is a valid TFile
     if (!file || !(file instanceof TFile)) {
@@ -166,7 +167,7 @@ async function fetchFileData(path: string): Promise<string> {
     }
     
     // If it's a valid file, proceed with reading the file
-    return await app.vault.read(file);
+    return await this.app.vault.read(file);
     
 }
 
@@ -226,37 +227,19 @@ function openIcon(): string {
     return `&#128194;`; // Unicode for a folder icon (📂)
 }
 
-import { Platform, Notice } from 'obsidian'; // Import Obsidian's Platform API
-
 async function openFileExternally(uniqueId: string) {
+    const source = findSourcePathByUniqueId(uniqueId);
+    if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
+
+    const file = this.app.vault.getAbstractFileByPath(source.trim());
+    if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
+
+    const absoluteFilePath = this.app.vault.adapter.getFullPath(file.path);
+
     if (Platform.isDesktop) {
         try {
-            // Dynamically import 'child_process' and 'os' only on desktop
-            const { exec } = await import('child_process');
-            const os = await import('os');
-
-            const source = findSourcePathByUniqueId(uniqueId);
-            if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
-
-            const file = app.vault.getAbstractFileByPath(source.trim());
-            if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
-
-            const absoluteFilePath = app.vault.adapter.getFullPath(file.path);
-
-            const platform = os.platform();
-            let command = '';
-
-            switch (platform) {
-                case 'win32': command = `start "" "${absoluteFilePath}"`; break;
-                case 'darwin': command = `open "${absoluteFilePath}"`; break;
-                case 'linux': command = `xdg-open "${absoluteFilePath}"`; break;
-                default: throw new Error('Unsupported OS');
-            }
-
-            exec(command, (error, stdout, stderr) => {
-                if (error) console.error(`Execution error: ${error.message}`);
-                if (stderr) console.error(`Execution stderr: ${stderr}`);
-            });
+            const { shell } = require('electron');
+            shell.openPath(absoluteFilePath);  // Open the file with the default application
         } catch (error) {
             console.error(`Error opening file externally: ${error.message}`);
         }
@@ -265,6 +248,10 @@ async function openFileExternally(uniqueId: string) {
         new Notice("Opening files externally is not supported on mobile.");
     }
 }
+
+
+
+
 
 
 function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
