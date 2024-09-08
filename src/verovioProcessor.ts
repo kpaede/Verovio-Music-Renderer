@@ -1,7 +1,6 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
-import { TFile, Platform, Notice } from 'obsidian';
-
+import { TFile, Platform, Notice, sanitizeHTMLToDom } from 'obsidian';
 
 
 // Maps for storing source paths and custom options
@@ -189,9 +188,15 @@ function createContainer(uniqueId: string): HTMLDivElement {
     container.className = "verovio-container";
     container.setAttribute("data-unique-id", uniqueId);
 
-    const svg = window.VerovioToolkit.renderToSVG(currentPage);
+    const svgString = window.VerovioToolkit.renderToSVG(currentPage);
+
+    // Parse the SVG string and manually create SVG nodes
     const svgWrapper = document.createElement('div');
-    svgWrapper.appendChild(stringToElement(svg));
+    const svgElement = createSvgElementFromString(svgString);
+    if (svgElement) {
+        svgWrapper.appendChild(svgElement);
+    }
+
     container.appendChild(svgWrapper);
 
     const toolbar = createToolbar(uniqueId);
@@ -199,17 +204,55 @@ function createContainer(uniqueId: string): HTMLDivElement {
 
     return container;
 }
+function createSvgElementFromString(svgString: string): SVGElement | null {
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgString, "image/svg+xml");
+
+    // Ensure the parsed document is actually an SVG
+    const svgElement = svgDoc.querySelector('svg');
+    if (!svgElement) {
+        console.error('Invalid SVG string');
+        return null;
+    }
+
+    // Create the main SVG element using the SVG namespace
+    const svgNode = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+    // Manually copy attributes
+    Array.from(svgElement.attributes).forEach(attr => {
+        svgNode.setAttribute(attr.name, attr.value);
+    });
+
+    // Manually append child elements
+    svgElement.childNodes.forEach(child => {
+        svgNode.appendChild(child.cloneNode(true));
+    });
+
+    return svgNode;
+}
+
+
+
 
 function updateContainerSVG(uniqueId: string, svg: string) {
     const container = document.querySelector(`.verovio-container[data-unique-id="${uniqueId}"]`);
     if (!container) return;
 
     const svgWrapper = container.querySelector('div');
-    svgWrapper?.replaceChildren(stringToElement(svg));
+    if (!svgWrapper) return;
 
-    const toolbar = container.querySelector('.verovio-toolbar');
-    if (toolbar) container.appendChild(toolbar);
+    // Clear the current content safely
+    svgWrapper.textContent = '';
+
+    // Create SVG element from string and append it
+    const svgElement = createSvgElementFromString(svg);
+    if (svgElement) {
+        svgWrapper.appendChild(svgElement);
+    }
 }
+
+
+
 
 function createToolbar(uniqueId: string): HTMLDivElement {
     const toolbar = document.createElement("div");
@@ -376,10 +419,5 @@ function dehighlightNoteHandler(data: any, uniqueId: string) {
     }
 }
 
-function stringToElement(svgString: string): HTMLElement {
-    const template = document.createElement('template');
-    template.innerHTML = svgString.trim();
-    return template.content.firstChild as HTMLElement;
-}
 
 export { processVerovioCodeBlocks };
