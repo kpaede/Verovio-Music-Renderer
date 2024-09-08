@@ -77,6 +77,8 @@ You can also do it manually: Copy the files main.js and manifest.json from the r
 
 ## If You Are Cloning This Project, Read This:
 - Audio playback requires changing the _root2.default.soundfontUrl = in /node_modules/lz-midi/lib/midi.js to the following (or a different) URL like this: _root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';. I am using [Paul Rosens midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts)
+- I disabled logging of the MIDI-file by //ing line 1472 in the midi.js of lz-midi: '//console.log('MidiFile 输入数据', data);''
+
 
 
 ## Additionally Used (With Many Thanks):
