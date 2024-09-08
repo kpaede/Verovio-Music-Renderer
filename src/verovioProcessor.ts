@@ -1,4 +1,4 @@
-import VerovioMusicRenderer from './main';
+import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
 import { exec } from 'child_process';
 import { TFile } from 'obsidian';
