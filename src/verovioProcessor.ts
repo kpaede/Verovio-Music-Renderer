@@ -159,8 +159,15 @@ async function fetchFileData(path: string): Promise<string> {
     }
 
     const file = app.vault.getAbstractFileByPath(path);
-    if (!file) throw new Error(`File not found: ${path}`);
+
+    // Check if the file exists and is a valid TFile
+    if (!file || !(file instanceof TFile)) {
+        throw new Error(`File not found or not a valid file: ${path}`);
+    }
+    
+    // If it's a valid file, proceed with reading the file
     return await app.vault.read(file);
+    
 }
 
 function isValidUrl(url: string): boolean {
