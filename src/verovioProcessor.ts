@@ -1,6 +1,6 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
-import { TFile, Platform, Notice, requestUrl, sanitizeHTMLToDom } from 'obsidian';
+import { TFile, Platform, Notice, requestUrl, setIcon, sanitizeHTMLToDom } from 'obsidian';
 
 
 // Maps for storing source paths and custom options
@@ -264,16 +264,12 @@ function createToolbar(uniqueId: string): HTMLDivElement {
     const toolbar = document.createElement("div");
     toolbar.className = "verovio-toolbar";
 
-    toolbar.appendChild(createButton(playIcon(), () => playMIDI(uniqueId)));
-    toolbar.appendChild(createButton(stopIcon(), stopMIDI));
-    toolbar.appendChild(createButton(downloadIcon(), downloadSVG));
-    toolbar.appendChild(createButton(openIcon(), () => openFileExternally(uniqueId)));
+    toolbar.appendChild(createButton("play", () => playMIDI(uniqueId)));         // Play icon
+    toolbar.appendChild(createButton("square", stopMIDI));                       // Stop icon
+    toolbar.appendChild(createButton("image-down", downloadSVG));                // Download SVG icon
+    toolbar.appendChild(createButton("external-link", () => openFileExternally(uniqueId)));  // Open external file icon
 
     return toolbar;
-}
-
-function openIcon(): string {
-    return `&#128194;`; // Unicode for a folder icon (📂)
 }
 
 async function openFileExternally(uniqueId: string) {
@@ -303,9 +299,9 @@ async function openFileExternally(uniqueId: string) {
 
 
 
-function createButton(iconSvg: string, onClick: () => void): HTMLButtonElement {
+function createButton(iconId: string, onClick: () => void): HTMLButtonElement {
     const button = document.createElement("button");
-    button.innerHTML = iconSvg;
+    setIcon(button, iconId);  // Set the icon using Obsidian's setIcon function
     button.onclick = onClick;
     return button;
 }
