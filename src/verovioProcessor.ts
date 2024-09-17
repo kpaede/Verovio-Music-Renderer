@@ -1,6 +1,6 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
-import { TFile, Platform, Notice, sanitizeHTMLToDom } from 'obsidian';
+import { TFile, Platform, Notice, requestUrl, sanitizeHTMLToDom } from 'obsidian';
 
 
 // Maps for storing source paths and custom options
@@ -153,9 +153,15 @@ function renderPage(uniqueId: string) {
 
 async function fetchFileData(path: string): Promise<string> {
     if (isValidUrl(path)) {
-        const response = await fetch(path);
-        if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
-        return await response.text();
+        try {
+            const response = await requestUrl({ url: path });
+            if (response.status !== 200) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+            return response.text;
+        } catch (error) {
+            throw new Error(`Failed to fetch file: ${error.message}`);
+        }
     }
 
     const file = this.app.vault.getAbstractFileByPath(path);
@@ -164,11 +170,11 @@ async function fetchFileData(path: string): Promise<string> {
     if (!file || !(file instanceof TFile)) {
         throw new Error(`File not found or not a valid file: ${path}`);
     }
-    
+
     // If it's a valid file, proceed with reading the file
     return await this.app.vault.read(file);
-    
 }
+
 
 function isValidUrl(url: string): boolean {
     try {
