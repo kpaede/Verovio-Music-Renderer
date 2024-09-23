@@ -72,7 +72,7 @@ measureRange: 1-20
 ```
 
 ## Installing the Plugin
-This plugin is not yet part of the Obsidian community plugins. You can install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (just add the URL you're on right now as a beta plugin).
+This plugin is part of the Obsidian community plugins. You can also install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (just add the URL you're on right now as a beta plugin).
 You can also do it manually: Copy the files main.js and manifest.json from the release (look right) into the plugin folder of your vault like this: VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/.
 
 ## If You Are Cloning This Project, Read This:
