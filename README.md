@@ -90,7 +90,7 @@ I have just rudimentary programming skills and use mostly ChatGPT.
 ## FAQ
 
 Q: Is it working with the mobile versions of Obsidian?
-A: Yes, but the buttons don't work yet.
+A: Yes, but the buttons for download and opening externally don't work.
 
 Q: The "folder" icon doesn't open anything.
 A: You need to define a default application for that file type to open it in your operating system.
@@ -99,4 +99,4 @@ Q: When I use "measureRange," it just renders a blank box.
 A: Try changing the breaks type in the plugin options.
 
 Q: I don't hear anything, and playback isn't starting.
-A: Make sure you're connected to the internet to load the SoundFont for playback. It won't work offline, and note highlighting won't either.
+A: Make sure you're connected to the internet to load the SoundFont for playback. It won't work offline, and note highlighting won't either. Check the Obsidian dev tools when in doubt.
