@@ -1,6 +1,6 @@
 {
 	"name": "Verovio Music Renderer",
-	"version": "1.0.1",
+	"version": "1.0.4",
 	"description": "Rendering of music notation files.",
 	"main": "main.js",
 	"scripts": {
