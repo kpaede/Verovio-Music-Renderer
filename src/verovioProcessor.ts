@@ -1,6 +1,7 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
+import { parseVerovioSource } from './parseVerovioSource';
 
 /**
  * State for each Verovio rendering instance.
@@ -28,52 +29,57 @@ export async function processVerovioCodeBlocks(
     el.createEl('p', { text: 'Verovio toolkit not loaded.' });
     return;
   }
-  try {
-    const { filePath, options, measureRange } = parseSource(source);
-    const rawMEI = await fetchMEIData.call(this, filePath);
 
+  try {
+    /* --- NEU: den Parser aufrufen ----------------------------------- */
+    const parsed = parseVerovioSource(source);
+    console.log('▶️ Parsed Verovio source', parsed);       // Debug
+
+    const { format, code, filePath, options, measureRange } = parsed;
+    let rawMEI: string;
+
+    /* --- Inline-Notation ------------------------------------------- */
+    if (code) {
+      if (format === 'mei') {
+        rawMEI = code;
+      } else if (format === 'abc' || format === 'musicxml') {
+        rawMEI = window.VerovioToolkit.renderData(code, { inputFormat: format });
+      } else {
+        throw new Error(`Unsupported inline format: ${format}`);
+      }
+    }
+    /* --- Datei-Pfad ------------------------------------------------- */
+    else if (filePath) {
+      rawMEI = await fetchMEIData.call(this, filePath);
+    }
+    /* --- Nichts gefunden ------------------------------------------- */
+    else {
+      throw new Error('Neither inline code nor file path provided.');
+    }
+
+    /* --- wie gehabt: Optionen, Rendern, Container … ---------------- */
     const mergedOptions = { ...this.settings, ...options };
     window.VerovioToolkit.setOptions(mergedOptions);
     window.VerovioToolkit.loadData(rawMEI);
+
     if (measureRange) {
       const ok = window.VerovioToolkit.select({ measureRange });
       if (!ok) throw new Error(`Failed to apply measureRange: ${measureRange}`);
     }
-    const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
 
+    const meiData   = window.VerovioToolkit.getMEI({ noLayout: false });
     window.VerovioToolkit.loadData(meiData);
     const totalPages = window.VerovioToolkit.getPageCount();
 
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     instanceStateMap[uid] = { meiData, options: mergedOptions, currentPage: 1, totalPages };
 
-    const container = createContainer(uid);
-    el.appendChild(container);
-  } catch (err) {
+    el.appendChild(createContainer(uid));
+  } catch (err: any) {
     el.createEl('p', { text: `Error rendering Verovio: ${err.message}` });
   }
 }
 
-function parseSource(src: string) {
-  const lines = src.split('\n').map(l => l.trim()).filter(Boolean);
-  const filePath = lines.shift()!;
-  const options: Record<string, any> = {};
-  let measureRange: string | undefined;
-  for (const line of lines) {
-    const [key, val] = line.split(':').map(p => p.trim());
-    if (!key || !val) continue;
-    if (key === 'measureRange') measureRange = val;
-    else options[key] = parseValue(val);
-  }
-  return { filePath, options, measureRange };
-}
-
-function parseValue(v: string) {
-  if (v === 'true') return true;
-  if (v === 'false') return false;
-  const n = Number(v);
-  return isNaN(n) ? v : n;
-}
 
 async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
   if (/^https?:\/\//.test(path)) {

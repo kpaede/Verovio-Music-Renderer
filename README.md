@@ -5,7 +5,7 @@
 This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC and MusicXML files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
-- Rendering MEI, ABC, and MusicXML notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths).
+- Rendering MEI, ABC, and MusicXML notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also from direct code.
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options.
 - Sound playback of the rendered music.
@@ -15,7 +15,6 @@ The plugin currently has the following features:
 - Page turning buttons and automatic page turning
 
 ### Future Features (Help Wanted):
-- The ability to render not just from URLs but also direct code, similar to the [ABCJS plugin](https://github.com/abcjs-music/obsidian-plugin-abcjs).
 - Humdrum support.
 - Bugfixing (especially highlighting timing).
 - Making the buttons for playback, download and opening externally work somehow in the mobile version of Obsidian.
@@ -41,6 +40,95 @@ Schubert_Lindenbaum.mei
 ```COPY UNTIL HERE
 
 ```
+
+you can also do it with 
+
+MusicXML
+
+```
+COPY FROM HERE
+```verovio
+<mei xmlns="http://www.music-encoding.org/ns/mei">
+  <music>
+    <body>
+      <mdiv>
+        <score>
+          <section>
+            <measure n="1">
+              <staff n="1">
+                <layer n="1">
+                  <note pname="c" oct="4" dur="4"/>
+                  <note pname="e" oct="4" dur="4"/>
+                  <note pname="g" oct="4" dur="4"/>
+                </layer>
+              </staff>
+            </measure>
+          </section>
+        </score>
+      </mdiv>
+    </body>
+  </music>
+</mei>
+```COPY UNTIL HERE
+
+
+abc notation
+
+```
+COPY FROM HERE
+```verovio
+X:1
+T: Test-Melody
+M:4/4
+K:C
+C D | G A B c |
+```COPY UNTIL HERE
+```
+and of course MEI
+
+```
+COPY FROM HERE
+```verovio
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="4.0.0">
+  <meiHead>
+    <fileDesc>
+      <titleStmt>
+        <title>Another Test</title>
+      </titleStmt>
+      <pubStmt/>
+    </fileDesc>
+  </meiHead>
+  <music>
+    <body>
+      <mdiv>
+        <score>
+          <scoreDef meter.count="4" meter.unit="4" key.sig="0">
+            <staffGrp>
+              <staffDef n="1" lines="5" clef.shape="G" clef.line="2"/>
+            </staffGrp>
+          </scoreDef>
+          <section>
+            <measure n="1">
+              <staff n="1">
+                <layer n="1">
+                  <note pname="c" oct="4" dur="4"/>
+                  <note pname="d" oct="4" dur="4"/>
+                  <note pname="e" oct="4" dur="4"/>
+                  <note pname="f" oct="4" dur="4"/>
+                </layer>
+              </staff>
+            </measure>
+          </section>
+        </score>
+      </mdiv>
+    </body>
+  </music>
+</mei>
+```COPY UNTIL HERE
+```
+
+
+
 
 ## Rendering Options
 In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings. 
