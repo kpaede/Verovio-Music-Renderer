@@ -3,7 +3,7 @@
 	"name": "Verovio Music Renderer",
 	"version": "1.0.6",
 	"minAppVersion": "0.15.0",
-	"description": "Rendering of music notation files.",
+	"description": "Rendering, playback and download of musical notation.",
 	"author": "Kornelius Paede",
 	"authorUrl": "https://dramturgie.lol",
 	"isDesktopOnly": false
