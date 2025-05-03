@@ -14,9 +14,9 @@ interface VerovioState {
 
 const instanceStateMap: Record<string, VerovioState> = {};
 
-// Timing offsets
-const NOTE_ON_OFFSET = 30;
-const NOTE_OFF_OFFSET = 0.5;
+// Timing offsets – edit these if note highlighting is off in general
+const NOTE_ON_OFFSET = 0.0;
+const NOTE_OFF_OFFSET = 0.01;
 
 export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
