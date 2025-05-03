@@ -14,12 +14,6 @@ The plugin currently has the following features:
 - Rendering specific measure selections.
 - Page turning buttons and automatic page turning
 
-### Future Features (Help Wanted):
-- Humdrum support.
-- Bugfixing (especially highlighting timing).
-- Making the buttons for playback, download and opening externally work somehow in the mobile version of Obsidian.
-- Pause and Resume playback / start from a specific note
-
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
 
