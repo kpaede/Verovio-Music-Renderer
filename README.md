@@ -12,13 +12,13 @@ The plugin currently has the following features:
 - Highlighting of live playback notes, synced to the sound playback (syncing is still not fully reliable, though).
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
 - Rendering specific measure selections.
+- Page turning buttons and automatic page turning
 
 ### Future Features (Help Wanted):
 - The ability to render not just from URLs but also direct code, similar to the [ABCJS plugin](https://github.com/abcjs-music/obsidian-plugin-abcjs).
 - Humdrum support.
-- Page turning.
 - Bugfixing (especially highlighting timing).
-- Making the buttons for playback, download and opening externally work in the mobile version of Obsidian.
+- Making the buttons for playback, download and opening externally work somehow in the mobile version of Obsidian.
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
