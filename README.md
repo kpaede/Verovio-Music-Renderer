@@ -1,6 +1,6 @@
 # Verovio Music Renderer for Obsidian
 
-![](Verovio-Plugin.gif)
+![](demo.gif)
 
 This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC and MusicXML files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, enhancing your efficiency when working with written music.
 
@@ -19,6 +19,7 @@ The plugin currently has the following features:
 - Humdrum support.
 - Bugfixing (especially highlighting timing).
 - Making the buttons for playback, download and opening externally work somehow in the mobile version of Obsidian.
+- Pause and Resume playback / start from a specific note
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
