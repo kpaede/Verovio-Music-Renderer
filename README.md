@@ -127,7 +127,7 @@ COPY FROM HERE
 
 ## Rendering Options
 In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings. 
-You can also apply custom settings for a specific rendering by adding them to your code block in Obsidian. Please refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) for available options. Note that not all options may work and that they interfere with each other.
+You can also apply custom settings for a specific rendering by adding them to your code block in Obsidian. Please refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) for available options. Note that not all options may work and that they interfere with each other. Please note, these won't work (yet), when you're rendering from a code block.
 
 ```
 COPY FROM HERE
