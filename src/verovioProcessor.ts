@@ -117,7 +117,10 @@ function updateSVG(uid: string, wrapper: HTMLElement) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svgEl = doc.querySelector('svg');
-  if (!svgEl) { wrapper.textContent = 'Error rendering SVG'; return; }
+  if (!svgEl) {
+    wrapper.textContent = 'Error rendering SVG';
+    return;
+  }
   wrapper.innerHTML = '';
   wrapper.appendChild(svgEl);
 }
@@ -143,8 +146,10 @@ async function playMIDI(uid: string) {
   const midiData = window.VerovioToolkit.renderToMIDI();
   if (!midiData) return;
 
-  // Stop any ongoing playback and remove listeners
+  // Stop previous playback and reset BPM so Verovio's tempo is used
   MIDI.Player.stop();
+  MIDI.Player.BPM = null;
+
   MIDI.Player.clearListeners?.();
 
   // Monkey-patch scheduleTracking via addListener wrapping
@@ -198,8 +203,12 @@ function downloadSVG(uid: string) {
   const svgEl = document.querySelector(`.verovio-container[data-uid="${uid}"] svg`);
   if (!svgEl) return;
   const blob = new Blob([new XMLSerializer().serializeToString(svgEl)], { type: 'image/svg+xml;charset=utf-8' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'score.svg';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'score.svg';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function openFileExternally(uid: string) {
