@@ -9,6 +9,7 @@ interface VerovioState {
   meiData: string;                   // MEI with layout applied (including measureRange)
   options: Record<string, any>;      // Merged Verovio options
   currentPage: number;               // Current page index
+  totalPages: number;                // Total number of pages
 }
 
 // Map of instance states by unique ID
@@ -17,11 +18,9 @@ const instanceStateMap: Record<string, VerovioState> = {};
 // Timing offsets for highlighting (leave these values intact)
 const NOTE_ON_OFFSET = 33.5;
 const NOTE_OFF_OFFSET = 0.5;
-// Cache to track highlighted notes per instance
-const highlightedNotesCache: Record<string, Set<string>> = {};
 
 /**
- * Main processor for ```verovio``` code blocks.
+ * Main processor for `verovio` code blocks.
  */
 export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
@@ -34,17 +33,15 @@ export async function processVerovioCodeBlocks(
     return;
   }
   try {
-    // Parse file path, inline options, and measureRange
+    // Parse source
     const { filePath, options, measureRange } = parseSource(source);
 
-    // Fetch raw MEI data
+    // Fetch MEI
     const rawMEI = await fetchMEIData.call(this, filePath);
 
-    // Merge plugin settings and inline overrides
+    // Merge options & initialize toolkit
     const mergedOptions = { ...this.settings, ...options };
     window.VerovioToolkit.setOptions(mergedOptions);
-
-    // Initial load & layout to capture complete MEI (with layout and measureRange)
     window.VerovioToolkit.loadData(rawMEI);
     if (measureRange) {
       const ok = window.VerovioToolkit.select({ measureRange });
@@ -52,15 +49,15 @@ export async function processVerovioCodeBlocks(
     }
     const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
 
-    // Create new instance state
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
-    instanceStateMap[uid] = {
-      meiData,
-      options: mergedOptions,
-      currentPage: 1
-    };
+    // Determine total pages
+    window.VerovioToolkit.loadData(meiData);
+    const totalPages = window.VerovioToolkit.getPageCount();
 
-    // Render container and append to DOM
+    // Create state
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
+    instanceStateMap[uid] = { meiData, options: mergedOptions, currentPage: 1, totalPages };
+
+    // Render and attach
     const container = createContainer(uid);
     el.appendChild(container);
   } catch (err) {
@@ -68,9 +65,6 @@ export async function processVerovioCodeBlocks(
   }
 }
 
-/**
- * Parse block content into path, options, and measureRange.
- */
 function parseSource(src: string): { filePath: string; options: Record<string, any>; measureRange?: string } {
   const lines = src.split('\n').map(l => l.trim()).filter(l => l);
   const filePath = lines.shift()!;
@@ -88,13 +82,10 @@ function parseSource(src: string): { filePath: string; options: Record<string, a
 function parseValue(v: string) {
   if (v === 'true') return true;
   if (v === 'false') return false;
-  const n = Number(v);
-  return isNaN(n) ? v : n;
+  const num = Number(v);
+  return isNaN(num) ? v : num;
 }
 
-/**
- * Fetch MEI from URL or vault.
- */
 async function fetchMEIData(this: VerovioMusicRenderer, path: string): Promise<string> {
   if (/^https?:\/\//.test(path)) {
     const res = await requestUrl({ url: path });
@@ -106,9 +97,6 @@ async function fetchMEIData(this: VerovioMusicRenderer, path: string): Promise<s
   return await this.app.vault.read(file);
 }
 
-/**
- * Create the container with SVG wrapper and toolbar.
- */
 function createContainer(uid: string): HTMLDivElement {
   const container = document.createElement('div');
   container.className = 'verovio-container';
@@ -123,20 +111,17 @@ function createContainer(uid: string): HTMLDivElement {
   // Toolbar
   const toolbar = document.createElement('div');
   toolbar.className = 'verovio-toolbar';
-  toolbar.appendChild(createBtn('chevron-left',  () => changePage(uid, -1)));
-  toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, +1)));
-  toolbar.appendChild(createBtn('play',          () => playMIDI(uid)));
-  toolbar.appendChild(createBtn('square',        () => stopMIDI()));
-  toolbar.appendChild(createBtn('image-down',    () => downloadSVG(uid)));
+  toolbar.appendChild(createBtn('chevron-left', () => changePage(uid, -1)));
+  toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, 1)));
+  toolbar.appendChild(createBtn('play', () => playMIDI(uid)));
+  toolbar.appendChild(createBtn('square', () => stopMIDI()));
+  toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
   toolbar.appendChild(createBtn('external-link', () => openFileExternally(uid)));
   container.appendChild(toolbar);
 
   return container;
 }
 
-/**
- * Render and inject the SVG for current page.
- */
 function updateSVG(uid: string, wrapper: HTMLElement) {
   const st = instanceStateMap[uid];
   window.VerovioToolkit.setOptions(st.options);
@@ -153,25 +138,19 @@ function updateSVG(uid: string, wrapper: HTMLElement) {
   wrapper.appendChild(svgEl);
 }
 
-/**
- * Change page by delta and re-render.
- */
 function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
-  const total = window.VerovioToolkit.getPageCount();
-  st.currentPage = Math.min(Math.max(1, st.currentPage + delta), total);
+  const next = st.currentPage + delta;
+  st.currentPage = Math.min(Math.max(1, next), st.totalPages);
   const wrapper = document.querySelector(
-    `.verovio-container[data-uid=\"${uid}\"] .verovio-svg-wrapper`
+    `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
   );
   if (wrapper instanceof HTMLElement) updateSVG(uid, wrapper);
 }
 
-/**
- * Play MIDI and highlight notes.
- */
 async function playMIDI(uid: string) {
   const st = instanceStateMap[uid];
-  changePage(uid, 0); // reload current
+  changePage(uid, 0);
   const midiData = window.VerovioToolkit.renderToMIDI();
   if (!midiData) return;
   MIDI.Player.stop();
@@ -184,75 +163,63 @@ async function playMIDI(uid: string) {
   });
 }
 
-/** Stop MIDI playback */
 function stopMIDI() {
   MIDI.Player.stop();
 }
 
-/** Highlight a note with offset */
 function highlightNote(uid: string, data: any) {
-  const time = MIDI.Player.currentTime + NOTE_ON_OFFSET;
-  const elems = window.VerovioToolkit.getElementsAtTime(time);
-  if (!highlightedNotesCache[uid]) highlightedNotesCache[uid] = new Set<string>();
-  elems.notes?.forEach(id => {
-    if (highlightedNotesCache[uid].has(id)) return;
-    const el = document.querySelector(
-      `.verovio-container[data-uid=\"${uid}\"] g.note#${id}`
-    );
-    if (el) {
-      el.classList.add('playing');
-      highlightedNotesCache[uid].add(id);
-    }
+  const container = document.querySelector(`.verovio-container[data-uid="${uid}"]`);
+  if (!container) return;
+  const currentTime = MIDI.Player.currentTime + NOTE_ON_OFFSET;
+  const elems = window.VerovioToolkit.getElementsAtTime(currentTime);
+  elems?.notes?.forEach(id => {
+    const el = container.querySelector(`g.note#${id}`);
+    el?.classList.add('playing');
   });
 }
 
-/** Remove highlight on note off */
 function dehighlightNote(uid: string, data: any) {
-  const time = MIDI.Player.currentTime - NOTE_OFF_OFFSET;
-  const elems = window.VerovioToolkit.getElementsAtTime(time);
-  const cache = highlightedNotesCache[uid];
-  if (!cache) return;
-  elems.notes?.forEach(id => {
-    if (!cache.has(id)) return;
-    const el = document.querySelector(
-      `.verovio-container[data-uid=\"${uid}\"] g.note#${id}`
-    );
-    if (el) {
-      el.classList.remove('playing');
-      cache.delete(id);
-    }
+  const container = document.querySelector(`.verovio-container[data-uid="${uid}"]`);
+  if (!container) return;
+  const currentTime = MIDI.Player.currentTime - NOTE_OFF_OFFSET;
+  const elems = window.VerovioToolkit.getElementsAtTime(currentTime);
+  elems?.notes?.forEach(id => {
+    const el = container.querySelector(`g.note#${id}`);
+    el?.classList.remove('playing');
   });
 }
 
-/** Download the current SVG for instance */
 function downloadSVG(uid: string) {
   const svgEl = document.querySelector(
-    `.verovio-container[data-uid=\"${uid}\"] svg`
+    `.verovio-container[data-uid="${uid}"] svg`
   );
   if (!svgEl) return;
   const blob = new Blob([
     new XMLSerializer().serializeToString(svgEl)
   ], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'score.svg';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'score.svg';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-/** Stub: Open original file externally */
 function openFileExternally(uid: string) {
   new Notice('External open not implemented');
 }
 
-/** Create a toolbar button with an icon and mousedown handler */
-/** Create a toolbar button with an icon and immediate response */
+/**
+ * Create a toolbar button with icon and single click handler.
+ */
 function createBtn(icon: string, cb: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
-  btn.setAttribute('type', 'button');
   setIcon(btn, icon);
-  // Use pointerdown for immediate response (covers mouse, touch, pen)
-  btn.addEventListener('pointerdown', e => { e.preventDefault(); cb(); });
-  // Fallback for environments without pointer events
-  btn.addEventListener('click', e => { e.preventDefault(); cb(); });
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    cb();
+  });
   return btn;
 }
