@@ -5,7 +5,7 @@
 This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC and MusicXML files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
-- Rendering MEI, ABC, and MusicXML notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also from direct code.
+- Rendering MEI, ABC, and MusicXML notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options.
 - Sound playback of the rendered music.
@@ -41,9 +41,9 @@ Schubert_Lindenbaum.mei
 
 ```
 
-you can also do it with 
+you can also render directly from the Obsidian Code Block:
 
-MusicXML
+it works with MusicXML
 
 ```
 COPY FROM HERE
@@ -70,9 +70,9 @@ COPY FROM HERE
   </music>
 </mei>
 ```COPY UNTIL HERE
+```
 
-
-abc notation
+also with ABC Notation 
 
 ```
 COPY FROM HERE
@@ -84,6 +84,7 @@ K:C
 C D | G A B c |
 ```COPY UNTIL HERE
 ```
+
 and of course MEI
 
 ```
