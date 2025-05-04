@@ -1,7 +1,7 @@
+import parseVerovioSource from './parseVerovioSource';
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
-import { parseVerovioSource } from './parseVerovioSource';
 
 /**
  * State for each Verovio rendering instance.
@@ -31,14 +31,14 @@ export async function processVerovioCodeBlocks(
   }
 
   try {
-    /* --- NEU: den Parser aufrufen ----------------------------------- */
+    // Parsen und Optionen extrahieren
     const parsed = parseVerovioSource(source);
-    console.log('▶️ Parsed Verovio source', parsed);       // Debug
+    console.log('▶️ Parsed Verovio source', parsed);
 
     const { format, code, filePath, options, measureRange } = parsed;
     let rawMEI: string;
 
-    /* --- Inline-Notation ------------------------------------------- */
+    // Inline-Notation
     if (code) {
       if (format === 'mei') {
         rawMEI = code;
@@ -48,37 +48,51 @@ export async function processVerovioCodeBlocks(
         throw new Error(`Unsupported inline format: ${format}`);
       }
     }
-    /* --- Datei-Pfad ------------------------------------------------- */
+    // Datei-Pfad
     else if (filePath) {
       rawMEI = await fetchMEIData.call(this, filePath);
     }
-    /* --- Nichts gefunden ------------------------------------------- */
+    // Fehler
     else {
       throw new Error('Neither inline code nor file path provided.');
     }
 
-    /* --- wie gehabt: Optionen, Rendern, Container … ---------------- */
+    // Optionen zusammenführen und measureRange *nicht* in setOptions übergeben
     const mergedOptions = { ...this.settings, ...options };
+    delete (mergedOptions as any).measureRange;
+
+    // Render-Setup
     window.VerovioToolkit.setOptions(mergedOptions);
     window.VerovioToolkit.loadData(rawMEI);
 
+    // measureRange *nach* loadData anwenden
     if (measureRange) {
       const ok = window.VerovioToolkit.select({ measureRange });
       if (!ok) throw new Error(`Failed to apply measureRange: ${measureRange}`);
     }
 
-    const meiData   = window.VerovioToolkit.getMEI({ noLayout: false });
+    // MEI neu holen, Seitenzahl bestimmen
+    const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
     window.VerovioToolkit.loadData(meiData);
     const totalPages = window.VerovioToolkit.getPageCount();
 
+    // Container erzeugen
     const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    instanceStateMap[uid] = { meiData, options: mergedOptions, currentPage: 1, totalPages };
+    instanceStateMap[uid] = {
+      meiData,
+      options: mergedOptions,
+      currentPage: 1,
+      totalPages
+    };
 
     el.appendChild(createContainer(uid));
   } catch (err: any) {
     el.createEl('p', { text: `Error rendering Verovio: ${err.message}` });
   }
 }
+
+// … Rest bleibt exakt wie zuvor …
+
 
 
 async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
