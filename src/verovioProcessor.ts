@@ -7,8 +7,9 @@ import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
  * State for each Verovio rendering instance.
  */
 interface VerovioState {
-  meiData: string;
+  rawData: string;
   options: Record<string, any>;
+  measureRange?: string;
   currentPage: number;
   totalPages: number;
 }
@@ -25,75 +26,63 @@ export async function processVerovioCodeBlocks(
   el: HTMLElement,
   ctx: any
 ) {
+  console.log('🛠️ [DEBUG] Starting processVerovioCodeBlocks');
   if (!window.VerovioToolkit) {
+    console.error('🛠️ [DEBUG] VerovioToolkit not loaded');
     el.createEl('p', { text: 'Verovio toolkit not loaded.' });
     return;
   }
 
   try {
-    // Parsen und Optionen extrahieren
     const parsed = parseVerovioSource(source);
-    console.log('▶️ Parsed Verovio source', parsed);
+    console.log('🛠️ [DEBUG] Parsed Verovio source:', parsed);
 
     const { format, code, filePath, options, measureRange } = parsed;
-    let rawMEI: string;
+    let rawData: string;
 
-    // Inline-Notation
     if (code) {
-      if (format === 'mei') {
-        rawMEI = code;
-      } else if (format === 'abc' || format === 'musicxml') {
-        rawMEI = window.VerovioToolkit.renderData(code, { inputFormat: format });
-      } else {
-        throw new Error(`Unsupported inline format: ${format}`);
-      }
-    }
-    // Datei-Pfad
-    else if (filePath) {
-      rawMEI = await fetchMEIData.call(this, filePath);
-    }
-    // Fehler
-    else {
+      rawData = format === 'mei'
+        ? code
+        : window.VerovioToolkit.renderData(code, { inputFormat: format });
+    } else if (filePath) {
+      rawData = await fetchMEIData.call(this, filePath);
+    } else {
       throw new Error('Neither inline code nor file path provided.');
     }
 
-    // Optionen zusammenführen und measureRange *nicht* in setOptions übergeben
-    const mergedOptions = { ...this.settings, ...options };
-    delete (mergedOptions as any).measureRange;
+    const appliedOptions = { ...this.settings, ...options };
+    delete (appliedOptions as any).measureRange;
+    const originalSettings = { ...this.settings };
 
-    // Render-Setup
-    window.VerovioToolkit.setOptions(mergedOptions);
-    window.VerovioToolkit.loadData(rawMEI);
+    window.VerovioToolkit.setOptions(appliedOptions);
+    window.VerovioToolkit.loadData(rawData);
 
-    // measureRange *nach* loadData anwenden
     if (measureRange) {
-      const ok = window.VerovioToolkit.select({ measureRange });
-      if (!ok) throw new Error(`Failed to apply measureRange: ${measureRange}`);
+      console.log(`🛠️ [DEBUG] Applying measureRange: ${measureRange}`);
+      const success = window.VerovioToolkit.select({ measureRange });
+      if (!success) throw new Error(`Failed to apply measureRange: ${measureRange}`);
     }
 
-    // MEI neu holen, Seitenzahl bestimmen
-    const meiData = window.VerovioToolkit.getMEI({ noLayout: false });
-    window.VerovioToolkit.loadData(meiData);
     const totalPages = window.VerovioToolkit.getPageCount();
+    console.log('🛠️ [DEBUG] Total pages after selection:', totalPages);
 
-    // Container erzeugen
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
     instanceStateMap[uid] = {
-      meiData,
-      options: mergedOptions,
+      rawData,
+      options: appliedOptions,
+      measureRange,
       currentPage: 1,
       totalPages
     };
 
     el.appendChild(createContainer(uid));
+    window.VerovioToolkit.setOptions(originalSettings);
+
   } catch (err: any) {
+    console.error('🛠️ [DEBUG] Error in processVerovioCodeBlocks:', err);
     el.createEl('p', { text: `Error rendering Verovio: ${err.message}` });
   }
 }
-
-// … Rest bleibt exakt wie zuvor …
-
-
 
 async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
   if (/^https?:\/\//.test(path)) {
@@ -132,15 +121,13 @@ function createContainer(uid: string) {
 function updateSVG(uid: string, wrapper: HTMLElement) {
   const st = instanceStateMap[uid];
   window.VerovioToolkit.setOptions(st.options);
-  window.VerovioToolkit.loadData(st.meiData);
+  window.VerovioToolkit.loadData(st.rawData);
+  if (st.measureRange) window.VerovioToolkit.select({ measureRange: st.measureRange });
   const svgString = window.VerovioToolkit.renderToSVG(st.currentPage);
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svgEl = doc.querySelector('svg');
-  if (!svgEl) {
-    wrapper.textContent = 'Error rendering SVG';
-    return;
-  }
+  if (!svgEl) { wrapper.textContent = 'Error rendering SVG'; return; }
   wrapper.innerHTML = '';
   wrapper.appendChild(svgEl);
 }
@@ -159,6 +146,13 @@ async function playMIDI(uid: string) {
   const container = document.querySelector(`.verovio-container[data-uid="${uid}"]`)!;
   const svgWrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement;
 
+  // Re-apply selection before playback
+  window.VerovioToolkit.setOptions(st.options);
+  window.VerovioToolkit.loadData(st.rawData);
+  if (st.measureRange) {
+    window.VerovioToolkit.select({ measureRange: st.measureRange });
+  }
+
   // Reset page and clear highlights
   changePage(uid, 0);
   container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
@@ -166,24 +160,18 @@ async function playMIDI(uid: string) {
   const midiData = window.VerovioToolkit.renderToMIDI();
   if (!midiData) return;
 
-  // Stop previous playback and reset BPM so Verovio's tempo is used
   MIDI.Player.stop();
   MIDI.Player.BPM = null;
-
   MIDI.Player.clearListeners?.();
 
-  // Monkey-patch scheduleTracking via addListener wrapping
   const originalAddListener = MIDI.Player.addListener;
-  MIDI.Player.addListener = (callback: (data: any) => void) => {
+  MIDI.Player.addListener = (callback) => {
     const wrapped = (data: any) => {
-      // Highlight immediately on note-on
       if (data.message === 144) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
         noteEl?.classList.add('playing');
       }
-      // Call original callback (page turn + dehighlight)
       callback(data);
-      // On note-off, remove highlight
       if (data.message === 128) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
         noteEl?.classList.remove('playing');
