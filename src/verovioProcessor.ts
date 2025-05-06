@@ -1,16 +1,13 @@
 // src/verovioProcessor.ts
-import VerovioMusicRenderer from '../main';
+import VerovioMusicRenderer from './main';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
 import parseVerovioSource from './parseVerovioSource';
 import { playMIDI, stopMIDI } from './midiController';
 import { downloadSVG } from './svgDownloader';
 import { openFileExternally } from './externalOpener';
+import { VIEW_TYPE_MUSIC_EDITOR, MusicEditorView } from './musicEditorView';
 
-// MIDI‑Offsets (bleiben exportiert für midiController)
-export const NOTE_ON_OFFSET = 0.0;
-export const NOTE_OFF_OFFSET = 0.01;
-
-/** State für jede Verovio-Instanz */
+/** State für jede Verovio‑Instanz */
 export interface VerovioState {
   meiData: string;
   options: Record<string, any>;
@@ -18,17 +15,24 @@ export interface VerovioState {
   currentPage: number;
   totalPages: number;
 }
-
-// Speichert den Renderer-Zustand pro UID
 export const instanceStateMap: Record<string, VerovioState> = {};
-// Mapping für Side‑Panel (wird hier nur angelegt, stört Rendering nicht)
-export const clickMap: Record<string, string> = {};
+
+/** Mapping UID → Datei & Zeilen für den Block‑Editor */
+export interface BlockMapping {
+  filePath: string;
+  startLine: number;
+  endLine: number;
+}
+export const clickMap: Record<string, BlockMapping> = {};
+
+/** sourceMap wird von externalOpener.ts benötigt */
 export const sourceMap: Record<string, string> = {};
 
-/**
- * Rendert das SVG für jeden ```verovio```-Codeblock
- * und speichert State in instanceStateMap[uid]
- */
+/** MIDI‑Offsets (für midiController) */
+export const NOTE_ON_OFFSET = 0.0;
+export const NOTE_OFF_OFFSET = 0.01;
+
+/** Hauptfunktion zum Rendern der Code‑Blöcke */
 export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
   source: string,
@@ -41,21 +45,21 @@ export async function processVerovioCodeBlocks(
   }
 
   try {
-    // 1) Quelle parsen (inline vs. file, Optionen etc.)
+    // 1) Quelle parsen
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
     let mr = measureRange;
     if (mr && /^\d+$/.test(mr)) mr = `${mr}-${mr}`;
 
-    // 2) Roh‑MEI erzeugen
+    // 2) Roh-MEI erzeugen
     let rawMEI: string;
     if (code) {
-      // Inline‑Notation
       rawMEI = format === 'mei'
         ? code
         : window.VerovioToolkit.renderData(code, {});
     } else if (filePath) {
-      // Datei‑Modus
       rawMEI = await fetchMEIData.call(this, filePath);
+      // optional Quelle merken
+      sourceMap[source] = filePath;
     } else {
       throw new Error('Neither inline code nor file path provided.');
     }
@@ -65,7 +69,6 @@ export async function processVerovioCodeBlocks(
     window.VerovioToolkit.setOptions(mergedOptions);
     window.VerovioToolkit.loadData(rawMEI);
 
-    // 4) MeasureRange anwenden
     if (mr) {
       if (!window.VerovioToolkit.select({ measureRange: mr })) {
         throw new Error(`Failed to apply measureRange: ${mr}`);
@@ -73,10 +76,8 @@ export async function processVerovioCodeBlocks(
       window.VerovioToolkit.redoLayout();
     }
 
-    // 5) UID erzeugen
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // 6) State speichern
+    // 4) UID & State speichern
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
     const meiData = window.VerovioToolkit.getMEI();
     const totalPages = window.VerovioToolkit.getPageCount();
     instanceStateMap[uid] = {
@@ -87,39 +88,30 @@ export async function processVerovioCodeBlocks(
       totalPages,
     };
 
-    // 7) Container bauen und anhängen
-    const container = createContainer.call(this, uid);
-    el.appendChild(container);
-
-    // ───────────────────────────────────────────────────────────────────────────
-    // 8) MAPPING für Side‑Panel (kann bleiben, beeinflusst Rendering nicht)
+    // 5) Mapping für Editor merken
     const section = ctx.getSectionInfo?.(el);
     if (section && ctx.sourcePath) {
-      clickMap[uid] = JSON.stringify({
-        code: source.trim(),
+      clickMap[uid] = {
         filePath: ctx.sourcePath,
         startLine: section.lineStart,
         endLine: section.lineEnd,
-      });
-    } else {
-      clickMap[uid] = JSON.stringify({
-        code: source.trim(),
-        filePath: ctx.sourcePath ?? '',
-        startLine: null,
-        endLine: null,
-      });
+      };
     }
-    if (filePath) {
-      sourceMap[uid] = filePath;
-    }
-    // 9) Klick öffnet Side‑Panel-Editor
-    container.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('.verovio-svg-wrapper')) {
-        this.openEditorFor(uid);
+
+    // 6) Container bauen
+    const container = createContainer.call(this, uid);
+    el.appendChild(container);
+
+    // 7) Klick‑Handler: lastClickedUid + openBlock
+    container.addEventListener('click', () => {
+      this.lastClickedUid = uid;
+      console.log('Verovio SVG clicked → lastClickedUid set.');
+      const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
+      if (leaves.length) {
+        const view = leaves[0].view as MusicEditorView;
+        view.openBlock(uid);
       }
     });
-    // ───────────────────────────────────────────────────────────────────────────
-
   } catch (err: any) {
     new Notice(`Error rendering Verovio: ${err.message}`);
   }
@@ -173,11 +165,8 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
   const svgEl = doc.querySelector('svg');
   wrapper.innerHTML = '';
-  if (svgEl) {
-    wrapper.appendChild(svgEl);
-  } else {
-    wrapper.textContent = 'Error rendering SVG';
-  }
+  if (svgEl) wrapper.appendChild(svgEl);
+  else wrapper.textContent = 'Error rendering SVG';
 }
 
 export function changePage(uid: string, delta: number) {
@@ -192,9 +181,6 @@ export function changePage(uid: string, delta: number) {
 function createBtn(icon: string, cb: () => void) {
   const btn = document.createElement('button');
   setIcon(btn, icon);
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    cb();
-  });
+  btn.addEventListener('click', e => { e.preventDefault(); cb(); });
   return btn;
 }
