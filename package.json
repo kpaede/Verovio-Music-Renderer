@@ -22,6 +22,8 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
+		"@codemirror/basic-setup": "^0.20.0",
+		"@codemirror/lang-xml": "^6.1.0",
 		"lz-midi": "^0.0.1",
 		"verovio": "^4.2.0"
 	}
