@@ -3,6 +3,12 @@ import MIDI from 'lz-midi';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
 import parseVerovioSource from './parseVerovioSource';
 
+// Load MIDI soundfont plugin once
+MIDI.loadPlugin({
+  instrument: 'acoustic_grand_piano',
+  onsuccess: () => console.log('MIDI plugin loaded'),
+});
+
 // Workaround: Override XMLHttpRequest.getResponseHeader to ignore unsafe header 'Content-Length-Raw'
 if (typeof XMLHttpRequest !== 'undefined') {
   const origGetRH = XMLHttpRequest.prototype.getResponseHeader;
@@ -43,7 +49,6 @@ export async function processVerovioCodeBlocks(
   try {
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
 
-    // Normalize single-measure to range
     let mr = measureRange;
     if (mr && /^\d+$/.test(mr)) mr = `${mr}-${mr}`;
 
@@ -125,15 +130,18 @@ function updateSVG(uid: string, wrapper: HTMLElement) {
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svgEl = doc.querySelector('svg');
   wrapper.innerHTML = '';
-  if (!svgEl) wrapper.textContent = 'Error rendering SVG';
-  else wrapper.appendChild(svgEl);
+  if (!svgEl) {
+    wrapper.textContent = 'Error rendering SVG';
+  } else {
+    wrapper.appendChild(svgEl);
+  }
 }
 
 function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
-  const wrapper = document.querySelector(
-    `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
+    const wrapper = document.querySelector(
+    `.verovio-container[data-uid=\"${uid}\"] .verovio-svg-wrapper`
   ) as HTMLElement;
   updateSVG(uid, wrapper);
 }
@@ -145,43 +153,30 @@ function playMIDI(uid: string) {
   )! as HTMLElement;
   const svgWrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement;
 
-  // Reset page & clear previous highlights
   changePage(uid, 0);
   container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-  MIDI.Player.stop();
-  MIDI.Player.BPM = null;
-  MIDI.Player.clearListeners?.();
 
   const midiData = window.VerovioToolkit.renderToMIDI();
   if (!midiData) return;
 
-  // Monkey-patch listener for highlighting
-  const originalAddListener = MIDI.Player.addListener;
-  MIDI.Player.addListener = (callback: (data: any) => void) =>
-    originalAddListener.call(MIDI.Player, (data: any) => {
-      if (data.message === 144) {
-        const noteEl = container.querySelector(`g.note#${data.note}`);
-        noteEl?.classList.add('playing');
-      }
-      callback(data);
-      if (data.message === 128) {
-        const noteEl = container.querySelector(`g.note#${data.note}`);
-        noteEl?.classList.remove('playing');
-      }
-    });
+  MIDI.Player.stop();
+  if (typeof MIDI.Player.clearAnimation === 'function') MIDI.Player.clearAnimation();
+  if (typeof MIDI.Player.removeListener === 'function') MIDI.Player.removeListener();
 
   MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
+    MIDI.Player.BPM = null;
     MIDI.Player.start();
-    MIDI.Player.setAnimation(({ now }) => {
+    MIDI.Player.setAnimation(({ now, end, events }) => {
       const currentMs = now * 1000 + NOTE_ON_OFFSET;
-      const elements = window.VerovioToolkit.getElementsAtTime(currentMs);
+      const raw = window.VerovioToolkit.getElementsAtTime(currentMs);
+      const elements: any = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!elements || !Array.isArray(elements.notes)) return;
       if (elements.page > 0 && elements.page !== st.currentPage) {
         st.currentPage = elements.page;
         updateSVG(uid, svgWrapper);
       }
-      // Clear and re-highlight notes
       container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-      elements.notes.forEach(id => {
+      elements.notes.forEach((id: number) => {
         const noteEl = container.querySelector(`g.note#${id}`);
         noteEl?.classList.add('playing');
       });
@@ -191,6 +186,12 @@ function playMIDI(uid: string) {
 
 function stopMIDI(uid: string) {
   MIDI.Player.stop();
+  if (typeof MIDI.Player.clearAnimation === 'function') {
+    MIDI.Player.clearAnimation();
+  }
+  if (typeof MIDI.Player.removeListener === 'function') {
+    MIDI.Player.removeListener();
+  }
   containerRemoveHighlights(uid);
 }
 
@@ -198,7 +199,7 @@ function containerRemoveHighlights(uid: string) {
   const container = document.querySelector(
     `.verovio-container[data-uid="${uid}"]`
   )! as HTMLElement;
-  container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing')); 
+  container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
 }
 
 function downloadSVG(uid: string) {
