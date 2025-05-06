@@ -1,7 +1,10 @@
+// verovioProcessor.ts
 import VerovioMusicRenderer from '../main';
-import MIDI from 'lz-midi';
 import { TFile, Notice, requestUrl, setIcon, Platform } from 'obsidian';
 import parseVerovioSource from './parseVerovioSource';
+import { playMIDI, stopMIDI } from './midiController';
+import { downloadSVG } from './svgDownloader';
+import { openFileExternally } from './externalOpener';
 
 // Workaround: Override XMLHttpRequest.getResponseHeader to ignore unsafe header 'Content-Length-Raw'
 if (typeof XMLHttpRequest !== 'undefined') {
@@ -14,8 +17,8 @@ if (typeof XMLHttpRequest !== 'undefined') {
   };
 }
 
-/** State for each Verovio rendering instance. */
-interface VerovioState {
+/** State for jede Verovio-Instanz */
+export interface VerovioState {
   meiData: string;
   options: Record<string, any>;
   measureRange?: string;
@@ -23,13 +26,11 @@ interface VerovioState {
   totalPages: number;
 }
 
-const instanceStateMap: Record<string, VerovioState> = {};
-// Neu: Map für externe Öffnen-Logik
-const sourceMap: Record<string, string> = {};
+export const instanceStateMap: Record<string, VerovioState> = {};
+export const sourceMap: Record<string, string> = {};
 
-// Timing offsets – edit these if note highlighting is off in general
-const NOTE_ON_OFFSET = 0.0;
-const NOTE_OFF_OFFSET = 0.01;
+export const NOTE_ON_OFFSET = 0.0;
+export const NOTE_OFF_OFFSET = 0.01;
 
 export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
@@ -44,8 +45,6 @@ export async function processVerovioCodeBlocks(
 
   try {
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
-
-    // Normalize single-measure to range
     let mr = measureRange;
     if (mr && /^\d+$/.test(mr)) mr = `${mr}-${mr}`;
 
@@ -73,14 +72,10 @@ export async function processVerovioCodeBlocks(
     const totalPages = window.VerovioToolkit.getPageCount();
     const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Zustand speichern
     instanceStateMap[uid] = { meiData, options: mergedOptions, measureRange: mr, currentPage: 1, totalPages };
-    // Neu: Quelldateipfad für externes Öffnen speichern
-    if (filePath) {
-      sourceMap[uid] = filePath;
-    }
+    if (filePath) sourceMap[uid] = filePath;
 
-    el.appendChild(createContainer(uid));
+    el.appendChild(createContainer.call(this, uid));
   } catch (err: any) {
     new Notice(`Error rendering Verovio: ${err.message}`);
   }
@@ -114,13 +109,13 @@ function createContainer(uid: string) {
   toolbar.appendChild(createBtn('play', () => playMIDI(uid)));
   toolbar.appendChild(createBtn('square', () => stopMIDI(uid)));
   toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
-  toolbar.appendChild(createBtn('external-link', () => openFileExternally(uid)));
+  toolbar.appendChild(createBtn('external-link', () => openFileExternally.call(this, uid)));
   container.appendChild(toolbar);
 
   return container;
 }
 
-function updateSVG(uid: string, wrapper: HTMLElement) {
+export function updateSVG(uid: string, wrapper: HTMLElement) {
   const st = instanceStateMap[uid];
   window.VerovioToolkit.setOptions(st.options);
   window.VerovioToolkit.loadData(st.meiData);
@@ -137,119 +132,13 @@ function updateSVG(uid: string, wrapper: HTMLElement) {
   else wrapper.appendChild(svgEl);
 }
 
-function changePage(uid: string, delta: number) {
+export function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
   const wrapper = document.querySelector(
     `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
   ) as HTMLElement;
   updateSVG(uid, wrapper);
-}
-
-function playMIDI(uid: string) {
-  const st = instanceStateMap[uid];
-  const container = document.querySelector(
-    `.verovio-container[data-uid="${uid}"]`
-  )! as HTMLElement;
-  const svgWrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement;
-
-  // Reset page & clear previous highlights
-  changePage(uid, 0);
-  container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-  MIDI.Player.stop();
-  MIDI.Player.BPM = null;
-  MIDI.Player.clearListeners?.();
-
-  const midiData = window.VerovioToolkit.renderToMIDI();
-  if (!midiData) return;
-
-  // Monkey-patch listener for highlighting
-  const originalAddListener = MIDI.Player.addListener;
-  MIDI.Player.addListener = (callback: (data: any) => void) =>
-    originalAddListener.call(MIDI.Player, (data: any) => {
-      if (data.message === 144) {
-        const noteEl = container.querySelector(`g.note#${data.note}`);
-        noteEl?.classList.add('playing');
-      }
-      callback(data);
-      if (data.message === 128) {
-        const noteEl = container.querySelector(`g.note#${data.note}`);
-        noteEl?.classList.remove('playing');
-      }
-    });
-
-  MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
-    MIDI.Player.start();
-    MIDI.Player.setAnimation(({ now }) => {
-      const currentMs = now * 1000 + NOTE_ON_OFFSET;
-      const elements = window.VerovioToolkit.getElementsAtTime(currentMs);
-      if (elements.page > 0 && elements.page !== st.currentPage) {
-        st.currentPage = elements.page;
-        updateSVG(uid, svgWrapper);
-      }
-      // Clear and re-highlight notes
-      container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-      elements.notes.forEach(id => {
-        const noteEl = container.querySelector(`g.note#${id}`);
-        noteEl?.classList.add('playing');
-      });
-    });
-  });
-}
-
-function stopMIDI(uid: string) {
-  MIDI.Player.stop();
-  MIDI.Player.clearListeners?.();
-  MIDI.Player.setAnimation?.(() => {});
-  containerRemoveHighlights(uid);
-}
-
-function containerRemoveHighlights(uid: string) {
-  const container = document.querySelector(
-    `.verovio-container[data-uid="${uid}"]`
-  )! as HTMLElement;
-  container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-}
-
-function downloadSVG(uid: string) {
-  const svgEl = document.querySelector(
-    `.verovio-container[data-uid="${uid}"] svg`
-  );
-  if (!svgEl) return;
-  const blob = new Blob([
-    new XMLSerializer().serializeToString(svgEl)
-  ], { type: 'image/svg+xml;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'score.svg';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
-
-async function openFileExternally(uniqueId: string) {
-  const source = findSourcePathByUniqueId(uniqueId);
-  if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
-
-  const file = this.app.vault.getAbstractFileByPath(source.trim());
-  if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
-
-  const absoluteFilePath = this.app.vault.adapter.getFullPath(file.path);
-
-  if (Platform.isDesktop) {
-      try {
-          const { shell } = require('electron');
-          shell.openPath(absoluteFilePath);  // Open the file with the default application
-      } catch (error) {
-          console.error(`Error opening file externally: ${error.message}`);
-      }
-  } else {
-      new Notice("Opening files externally is not supported on mobile.");
-  }
-}
-
-function findSourcePathByUniqueId(uniqueId: string): string | undefined {
-  return sourceMap[uniqueId];
 }
 
 function createBtn(icon: string, cb: () => void) {
