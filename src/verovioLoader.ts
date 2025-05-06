@@ -1,5 +1,4 @@
 import * as verovio from 'verovio';
-import * as fs from 'fs';
 
 export async function loadVerovio() {
   if (window.VerovioToolkit) return;

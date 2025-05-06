@@ -1,13 +1,7 @@
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
-import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
+import { TFile, Notice, requestUrl, setIcon, Platform } from 'obsidian';
 import parseVerovioSource from './parseVerovioSource';
-
-// Load MIDI soundfont plugin once
-MIDI.loadPlugin({
-  instrument: 'acoustic_grand_piano',
-  onsuccess: () => console.log('MIDI plugin loaded'),
-});
 
 // Workaround: Override XMLHttpRequest.getResponseHeader to ignore unsafe header 'Content-Length-Raw'
 if (typeof XMLHttpRequest !== 'undefined') {
@@ -30,6 +24,8 @@ interface VerovioState {
 }
 
 const instanceStateMap: Record<string, VerovioState> = {};
+// Neu: Map für externe Öffnen-Logik
+const sourceMap: Record<string, string> = {};
 
 // Timing offsets – edit these if note highlighting is off in general
 const NOTE_ON_OFFSET = 0.0;
@@ -49,6 +45,7 @@ export async function processVerovioCodeBlocks(
   try {
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
 
+    // Normalize single-measure to range
     let mr = measureRange;
     if (mr && /^\d+$/.test(mr)) mr = `${mr}-${mr}`;
 
@@ -75,7 +72,13 @@ export async function processVerovioCodeBlocks(
     const meiData = window.VerovioToolkit.getMEI();
     const totalPages = window.VerovioToolkit.getPageCount();
     const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Zustand speichern
     instanceStateMap[uid] = { meiData, options: mergedOptions, measureRange: mr, currentPage: 1, totalPages };
+    // Neu: Quelldateipfad für externes Öffnen speichern
+    if (filePath) {
+      sourceMap[uid] = filePath;
+    }
 
     el.appendChild(createContainer(uid));
   } catch (err: any) {
@@ -130,18 +133,15 @@ function updateSVG(uid: string, wrapper: HTMLElement) {
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svgEl = doc.querySelector('svg');
   wrapper.innerHTML = '';
-  if (!svgEl) {
-    wrapper.textContent = 'Error rendering SVG';
-  } else {
-    wrapper.appendChild(svgEl);
-  }
+  if (!svgEl) wrapper.textContent = 'Error rendering SVG';
+  else wrapper.appendChild(svgEl);
 }
 
 function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
-    const wrapper = document.querySelector(
-    `.verovio-container[data-uid=\"${uid}\"] .verovio-svg-wrapper`
+  const wrapper = document.querySelector(
+    `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
   ) as HTMLElement;
   updateSVG(uid, wrapper);
 }
@@ -153,30 +153,43 @@ function playMIDI(uid: string) {
   )! as HTMLElement;
   const svgWrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement;
 
+  // Reset page & clear previous highlights
   changePage(uid, 0);
   container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
+  MIDI.Player.stop();
+  MIDI.Player.BPM = null;
+  MIDI.Player.clearListeners?.();
 
   const midiData = window.VerovioToolkit.renderToMIDI();
   if (!midiData) return;
 
-  MIDI.Player.stop();
-  if (typeof MIDI.Player.clearAnimation === 'function') MIDI.Player.clearAnimation();
-  if (typeof MIDI.Player.removeListener === 'function') MIDI.Player.removeListener();
+  // Monkey-patch listener for highlighting
+  const originalAddListener = MIDI.Player.addListener;
+  MIDI.Player.addListener = (callback: (data: any) => void) =>
+    originalAddListener.call(MIDI.Player, (data: any) => {
+      if (data.message === 144) {
+        const noteEl = container.querySelector(`g.note#${data.note}`);
+        noteEl?.classList.add('playing');
+      }
+      callback(data);
+      if (data.message === 128) {
+        const noteEl = container.querySelector(`g.note#${data.note}`);
+        noteEl?.classList.remove('playing');
+      }
+    });
 
   MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
-    MIDI.Player.BPM = null;
     MIDI.Player.start();
-    MIDI.Player.setAnimation(({ now, end, events }) => {
+    MIDI.Player.setAnimation(({ now }) => {
       const currentMs = now * 1000 + NOTE_ON_OFFSET;
-      const raw = window.VerovioToolkit.getElementsAtTime(currentMs);
-      const elements: any = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (!elements || !Array.isArray(elements.notes)) return;
+      const elements = window.VerovioToolkit.getElementsAtTime(currentMs);
       if (elements.page > 0 && elements.page !== st.currentPage) {
         st.currentPage = elements.page;
         updateSVG(uid, svgWrapper);
       }
+      // Clear and re-highlight notes
       container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-      elements.notes.forEach((id: number) => {
+      elements.notes.forEach(id => {
         const noteEl = container.querySelector(`g.note#${id}`);
         noteEl?.classList.add('playing');
       });
@@ -186,12 +199,8 @@ function playMIDI(uid: string) {
 
 function stopMIDI(uid: string) {
   MIDI.Player.stop();
-  if (typeof MIDI.Player.clearAnimation === 'function') {
-    MIDI.Player.clearAnimation();
-  }
-  if (typeof MIDI.Player.removeListener === 'function') {
-    MIDI.Player.removeListener();
-  }
+  MIDI.Player.clearListeners?.();
+  MIDI.Player.setAnimation?.(() => {});
   containerRemoveHighlights(uid);
 }
 
@@ -218,8 +227,29 @@ function downloadSVG(uid: string) {
   document.body.removeChild(a);
 }
 
-function openFileExternally(uid: string) {
-  new Notice('External open not implemented');
+async function openFileExternally(uniqueId: string) {
+  const source = findSourcePathByUniqueId(uniqueId);
+  if (!source) throw new Error(`Source path not found for uniqueId: ${uniqueId}`);
+
+  const file = this.app.vault.getAbstractFileByPath(source.trim());
+  if (!file || !(file instanceof TFile)) throw new Error(`File not found or not a valid file: ${source}`);
+
+  const absoluteFilePath = this.app.vault.adapter.getFullPath(file.path);
+
+  if (Platform.isDesktop) {
+      try {
+          const { shell } = require('electron');
+          shell.openPath(absoluteFilePath);  // Open the file with the default application
+      } catch (error) {
+          console.error(`Error opening file externally: ${error.message}`);
+      }
+  } else {
+      new Notice("Opening files externally is not supported on mobile.");
+  }
+}
+
+function findSourcePathByUniqueId(uniqueId: string): string | undefined {
+  return sourceMap[uniqueId];
 }
 
 function createBtn(icon: string, cb: () => void) {
