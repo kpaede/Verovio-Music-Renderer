@@ -3,6 +3,17 @@ import MIDI from 'lz-midi';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
 import parseVerovioSource from './parseVerovioSource';
 
+// Workaround: Override XMLHttpRequest.getResponseHeader to ignore unsafe header 'Content-Length-Raw'
+if (typeof XMLHttpRequest !== 'undefined') {
+  const origGetRH = XMLHttpRequest.prototype.getResponseHeader;
+  XMLHttpRequest.prototype.getResponseHeader = function(name: string): string | null {
+    if (name.toLowerCase() === 'content-length-raw') {
+      return null;
+    }
+    return origGetRH.call(this, name);
+  };
+}
+
 /** State for each Verovio rendering instance. */
 interface VerovioState {
   meiData: string;
