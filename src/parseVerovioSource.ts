@@ -1,6 +1,5 @@
-/* -----------------------------------------------------------------------
- *  parseVerovioSource.ts
- * --------------------------------------------------------------------- */
+// parseVerovioSource.ts
+
 export type VerovioFormat = 'mei' | 'abc' | 'musicxml';
 
 export interface ParsedVerovioSource {
@@ -12,29 +11,40 @@ export interface ParsedVerovioSource {
 }
 
 /**
- *  Zerlegt den Inhalt eines 
+ *  Zerlegt den Inhalt eines
  *  verovio-Codeblocks, erkennt Inline-Notation vs. Datei-Modus,
  *  extrahiert Optionen und measureRange immer am Ende des Blocks.
  */
 export default function parseVerovioSource(src: string): ParsedVerovioSource {
   const rawLines = src.split('\n');
 
-  // 1) Extrahiere zusammenhängende key:val‑Zeilen am Ende
+  // 1) Extrahiere zusammenhängende key:val-Zeilen am Ende
   //    (Filtere URLs aus, damit Pfade nicht als Optionen erkannt werden)
   const options: Record<string, any> = {};
   let measureRange: string | undefined;
   let end = rawLines.length;
+
   for (let i = rawLines.length - 1; i >= 0; i--) {
-    const line = rawLines[i].trim();
+    const lineRaw = rawLines[i];
+    const line = lineRaw.trim();
+    // Leerzeilen überspringen
+    if (line === '') {
+      continue;
+    }
     // Zeile als URL erkennen: http:// oder https:// --> Abbruch, keine weiteren Optionen
     if (/^https?:\/\//i.test(line)) {
       break;
     }
-    // Option-Zeilen: Schlüssel:Wert, Schlüssel keine URL
-    if (/^[A-Za-z]\w*\s*:\s*.+$/.test(line) && !/^[A-Za-z]+:\/\//.test(line)) {
-      const [key, val] = line.split(':').map(p => p.trim());
-      if (key === 'measureRange') measureRange = val;
-      else options[key] = parseValue(val);
+    // Option-Zeilen: Schlüssel:Wert, Schlüssel beginnt mit kleinem Buchstaben
+    if (/^[a-z]\w*\s*:\s*.+$/.test(line) && !/^[A-Za-z]+:\/\//.test(line)) {
+      const sepIndex = line.indexOf(':');
+      const key = line.slice(0, sepIndex).trim();
+      const val = line.slice(sepIndex + 1).trim();
+      if (key === 'measureRange') {
+        measureRange = val;
+      } else {
+        options[key] = parseValue(val);
+      }
       end = i;
     } else {
       break;
@@ -46,11 +56,11 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   const first = nonEmpty[0] || '';
   const firstLower = first.toLowerCase();
 
-  // 2) Legacy‑Präfixe
+  // 2) Legacy-Präfixe
   if (firstLower === 'abc:' || firstLower === 'abc') {
     return {
       format: 'abc',
-      code: codeLines.join('\n').replace(/^abc:\s*\n?/i, ''),
+      code: codeLines.join('\n').replace(/^abc:\s*/i, '').trim(),
       options,
       measureRange
     };
@@ -58,7 +68,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   if (firstLower === 'musicxml:' || firstLower === 'musicxml') {
     return {
       format: 'musicxml',
-      code: codeLines.join('\n').replace(/^musicxml:\s*\n?/i, ''),
+      code: codeLines.join('\n').replace(/^musicxml:\s*/i, '').trim(),
       options,
       measureRange
     };
@@ -66,7 +76,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   if (firstLower === 'mei:' || firstLower === 'mei') {
     return {
       format: 'mei',
-      code: codeLines.join('\n').replace(/^mei:\s*\n?/i, ''),
+      code: codeLines.join('\n').replace(/^mei:\s*/i, '').trim(),
       options,
       measureRange
     };
@@ -74,19 +84,17 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
 
   // 3) Automatische Inline-Erkennung
   if (nonEmpty[0]?.startsWith('<mei')) {
-    return { format: 'mei', code: codeLines.join('\n'), options, measureRange };
+    return { format: 'mei', code: codeLines.join('\n').trim(), options, measureRange };
   }
-  if (nonEmpty[0]?.startsWith('<?xml') ||
-      nonEmpty[0]?.includes('<score-partwise')) {
-    return { format: 'musicxml', code: codeLines.join('\n'), options, measureRange };
+  if (nonEmpty[0]?.startsWith('<?xml') || nonEmpty[0]?.includes('<score-partwise')) {
+    return { format: 'musicxml', code: codeLines.join('\n').trim(), options, measureRange };
   }
   if (/^X:\d+/i.test(nonEmpty[0] || '')) {
-    return { format: 'abc', code: codeLines.join('\n'), options, measureRange };
+    return { format: 'abc', code: codeLines.join('\n').trim(), options, measureRange };
   }
 
   // 4) Datei-Modus (erste Zeile = Pfad)
   const filePath = nonEmpty.shift();
-  // Format basierend auf Dateiendung erkennen
   let fileFormat: VerovioFormat = 'mei';
   const ext = filePath?.split('.').pop()?.toLowerCase();
   if (ext === 'xml' || ext === 'musicxml') fileFormat = 'musicxml';
@@ -95,7 +103,6 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   return { format: fileFormat, filePath, options, measureRange };
 }
 
-/* --- kleine Helfer ---------------------------------------------------- */
 function parseValue(v: string) {
   if (v === 'true')  return true;
   if (v === 'false') return false;

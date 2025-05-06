@@ -1,13 +1,11 @@
-import parseVerovioSource from './parseVerovioSource';
 import VerovioMusicRenderer from '../main';
 import MIDI from 'lz-midi';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
+import parseVerovioSource from './parseVerovioSource';
 
-/**
- * State for each Verovio rendering instance.
- */
+/** State for each Verovio rendering instance. */
 interface VerovioState {
-  rawData: string;
+  meiData: string;
   options: Record<string, any>;
   measureRange?: string;
   currentPage: number;
@@ -26,61 +24,46 @@ export async function processVerovioCodeBlocks(
   el: HTMLElement,
   ctx: any
 ) {
-  console.log('🛠️ [DEBUG] Starting processVerovioCodeBlocks');
   if (!window.VerovioToolkit) {
-    console.error('🛠️ [DEBUG] VerovioToolkit not loaded');
     el.createEl('p', { text: 'Verovio toolkit not loaded.' });
     return;
   }
 
   try {
-    const parsed = parseVerovioSource(source);
-    console.log('🛠️ [DEBUG] Parsed Verovio source:', parsed);
+    const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
 
-    const { format, code, filePath, options, measureRange } = parsed;
-    let rawData: string;
+    // Normalize single-measure to range
+    let mr = measureRange;
+    if (mr && /^\d+$/.test(mr)) mr = `${mr}-${mr}`;
 
+    let rawMEI: string;
     if (code) {
-      rawData = format === 'mei'
-        ? code
-        : window.VerovioToolkit.renderData(code, { inputFormat: format });
+      rawMEI = format === 'mei' ? code : window.VerovioToolkit.renderData(code, {});
     } else if (filePath) {
-      rawData = await fetchMEIData.call(this, filePath);
+      rawMEI = await fetchMEIData.call(this, filePath);
     } else {
       throw new Error('Neither inline code nor file path provided.');
     }
 
-    const appliedOptions = { ...this.settings, ...options };
-    delete (appliedOptions as any).measureRange;
-    const originalSettings = { ...this.settings };
+    const mergedOptions = { ...this.settings, ...options };
+    window.VerovioToolkit.setOptions(mergedOptions);
+    window.VerovioToolkit.loadData(rawMEI);
 
-    window.VerovioToolkit.setOptions(appliedOptions);
-    window.VerovioToolkit.loadData(rawData);
-
-    if (measureRange) {
-      console.log(`🛠️ [DEBUG] Applying measureRange: ${measureRange}`);
-      const success = window.VerovioToolkit.select({ measureRange });
-      if (!success) throw new Error(`Failed to apply measureRange: ${measureRange}`);
+    if (mr) {
+      if (!window.VerovioToolkit.select({ measureRange: mr })) {
+        throw new Error(`Failed to apply measureRange: ${mr}`);
+      }
+      window.VerovioToolkit.redoLayout();
     }
 
+    const meiData = window.VerovioToolkit.getMEI();
     const totalPages = window.VerovioToolkit.getPageCount();
-    console.log('🛠️ [DEBUG] Total pages after selection:', totalPages);
-
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
-    instanceStateMap[uid] = {
-      rawData,
-      options: appliedOptions,
-      measureRange,
-      currentPage: 1,
-      totalPages
-    };
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    instanceStateMap[uid] = { meiData, options: mergedOptions, measureRange: mr, currentPage: 1, totalPages };
 
     el.appendChild(createContainer(uid));
-    window.VerovioToolkit.setOptions(originalSettings);
-
   } catch (err: any) {
-    console.error('🛠️ [DEBUG] Error in processVerovioCodeBlocks:', err);
-    el.createEl('p', { text: `Error rendering Verovio: ${err.message}` });
+    new Notice(`Error rendering Verovio: ${err.message}`);
   }
 }
 
@@ -121,15 +104,18 @@ function createContainer(uid: string) {
 function updateSVG(uid: string, wrapper: HTMLElement) {
   const st = instanceStateMap[uid];
   window.VerovioToolkit.setOptions(st.options);
-  window.VerovioToolkit.loadData(st.rawData);
-  if (st.measureRange) window.VerovioToolkit.select({ measureRange: st.measureRange });
+  window.VerovioToolkit.loadData(st.meiData);
+  if (st.measureRange) {
+    window.VerovioToolkit.select({ measureRange: st.measureRange });
+    window.VerovioToolkit.redoLayout();
+  }
   const svgString = window.VerovioToolkit.renderToSVG(st.currentPage);
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svgEl = doc.querySelector('svg');
-  if (!svgEl) { wrapper.textContent = 'Error rendering SVG'; return; }
   wrapper.innerHTML = '';
-  wrapper.appendChild(svgEl);
+  if (!svgEl) wrapper.textContent = 'Error rendering SVG';
+  else wrapper.appendChild(svgEl);
 }
 
 function changePage(uid: string, delta: number) {
@@ -141,32 +127,27 @@ function changePage(uid: string, delta: number) {
   updateSVG(uid, wrapper);
 }
 
-async function playMIDI(uid: string) {
+function playMIDI(uid: string) {
   const st = instanceStateMap[uid];
-  const container = document.querySelector(`.verovio-container[data-uid="${uid}"]`)!;
+  const container = document.querySelector(
+    `.verovio-container[data-uid="${uid}"]`
+  )! as HTMLElement;
   const svgWrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement;
 
-  // Re-apply selection before playback
-  window.VerovioToolkit.setOptions(st.options);
-  window.VerovioToolkit.loadData(st.rawData);
-  if (st.measureRange) {
-    window.VerovioToolkit.select({ measureRange: st.measureRange });
-  }
-
-  // Reset page and clear highlights
+  // Reset page & clear previous highlights
   changePage(uid, 0);
   container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-
-  const midiData = window.VerovioToolkit.renderToMIDI();
-  if (!midiData) return;
-
   MIDI.Player.stop();
   MIDI.Player.BPM = null;
   MIDI.Player.clearListeners?.();
 
+  const midiData = window.VerovioToolkit.renderToMIDI();
+  if (!midiData) return;
+
+  // Monkey-patch listener for highlighting
   const originalAddListener = MIDI.Player.addListener;
-  MIDI.Player.addListener = (callback) => {
-    const wrapped = (data: any) => {
+  MIDI.Player.addListener = (callback: (data: any) => void) =>
+    originalAddListener.call(MIDI.Player, (data: any) => {
       if (data.message === 144) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
         noteEl?.classList.add('playing');
@@ -176,41 +157,47 @@ async function playMIDI(uid: string) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
         noteEl?.classList.remove('playing');
       }
-    };
-    return originalAddListener.call(MIDI.Player, wrapped);
-  };
-  MIDI.Player.clearAnimation?.();
+    });
 
   MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
     MIDI.Player.start();
     MIDI.Player.setAnimation(({ now }) => {
       const currentMs = now * 1000 + NOTE_ON_OFFSET;
       const elements = window.VerovioToolkit.getElementsAtTime(currentMs);
-      if (elements.page > 0) {
-        if (elements.page !== st.currentPage) {
-          st.currentPage = elements.page;
-          updateSVG(uid, svgWrapper);
-        }
-        container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-        elements.notes.forEach(id => {
-          const noteEl = container.querySelector(`g.note#${id}`);
-          noteEl?.classList.add('playing');
-        });
+      if (elements.page > 0 && elements.page !== st.currentPage) {
+        st.currentPage = elements.page;
+        updateSVG(uid, svgWrapper);
       }
+      // Clear and re-highlight notes
+      container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
+      elements.notes.forEach(id => {
+        const noteEl = container.querySelector(`g.note#${id}`);
+        noteEl?.classList.add('playing');
+      });
     });
   });
 }
 
 function stopMIDI(uid: string) {
-  const container = document.querySelector(`.verovio-container[data-uid="${uid}"]`)!;
   MIDI.Player.stop();
-  container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
+  containerRemoveHighlights(uid);
+}
+
+function containerRemoveHighlights(uid: string) {
+  const container = document.querySelector(
+    `.verovio-container[data-uid="${uid}"]`
+  )! as HTMLElement;
+  container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing')); 
 }
 
 function downloadSVG(uid: string) {
-  const svgEl = document.querySelector(`.verovio-container[data-uid="${uid}"] svg`);
+  const svgEl = document.querySelector(
+    `.verovio-container[data-uid="${uid}"] svg`
+  );
   if (!svgEl) return;
-  const blob = new Blob([new XMLSerializer().serializeToString(svgEl)], { type: 'image/svg+xml;charset=utf-8' });
+  const blob = new Blob([
+    new XMLSerializer().serializeToString(svgEl)
+  ], { type: 'image/svg+xml;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'score.svg';
