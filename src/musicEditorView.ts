@@ -2,11 +2,8 @@ import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import type VerovioMusicRenderer from './main';
 import { clickMap } from './verovioProcessor';
 
-// CodeMirror‑Module
-import { EditorView as CMEditorView } from '@codemirror/view';
-import { EditorState }           from '@codemirror/state';
-import { basicSetup }            from '@codemirror/basic-setup';
-import { xml } from '@codemirror/lang-xml';
+// CodeMirror‑Module — alles aus basic-setup, eine einzige Version
+import { EditorView, EditorState, basicSetup } from '@codemirror/basic-setup';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
@@ -69,13 +66,12 @@ export class MusicEditorView extends ItemView {
     this.contentEl.style.margin  = '0';
     this.contentEl.style.height  = '100%';
 
-    // CodeMirror-State konfigurieren mit XML-Highlighting
+    // CodeMirror-State konfigurieren
     const state = EditorState.create({
       doc: blockText,
       extensions: [
         basicSetup,
-        xml(),
-        CMEditorView.updateListener.of(async (update) => {
+        EditorView.updateListener.of(async (update) => {
           if (update.docChanged) {
             const updatedText = update.state.doc.toString();
             const full = await this.app.vault.read(file);
@@ -94,7 +90,7 @@ export class MusicEditorView extends ItemView {
     });
 
     // Editor initialisieren und in das Panel hängen
-    new CMEditorView({
+    new EditorView({
       state,
       parent: this.contentEl
     });
