@@ -1,4 +1,3 @@
-// src/verovioProcessor.ts
 import VerovioMusicRenderer from './main';
 import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
 import parseVerovioSource from './parseVerovioSource';
@@ -7,7 +6,7 @@ import { downloadSVG } from './svgDownloader';
 import { openFileExternally } from './externalOpener';
 import { VIEW_TYPE_MUSIC_EDITOR, MusicEditorView } from './musicEditorView';
 
-/** State für jede Verovio‑Instanz */
+/** State für jede Verovio-Instanz */
 export interface VerovioState {
   meiData: string;
   options: Record<string, any>;
@@ -17,22 +16,49 @@ export interface VerovioState {
 }
 export const instanceStateMap: Record<string, VerovioState> = {};
 
-/** Mapping UID → Datei & Zeilen für den Block‑Editor */
+/** Element-Info: Zeile (relativ inizial) und Parse-Index nur für Noten */
+interface ElementInfo { line: number; index: number; }
+
+/** Mapping UID → Datei & Zeilen für den Block-Editor */
 export interface BlockMapping {
   filePath: string;
   startLine: number;
   endLine: number;
+  elementMap: Record<string, ElementInfo>;
 }
 export const clickMap: Record<string, BlockMapping> = {};
 
-/** sourceMap wird von externalOpener.ts benötigt */
+/** sourceMap für externalOpener */
 export const sourceMap: Record<string, string> = {};
 
-/** MIDI‑Offsets (für midiController) */
+/** MIDI-Offsets (für midiController) */
 export const NOTE_ON_OFFSET = 0.0;
 export const NOTE_OFF_OFFSET = 0.01;
 
-/** Hauptfunktion zum Rendern der Code‑Blöcke */
+/** Zeilen-Offset beim Springen */
+const LINE_JUMP_OFFSET = 2;
+
+/**
+ * Parst MEI, injiziert xml:id nur für <note>-Tags und baut elementMap (relativ zur MEI-String-Zeile)
+ */
+function injectIdsAndMap(mei: string, uid: string): { code: string; elementMap: Record<string, ElementInfo> } {
+  const lines = mei.split('\n');
+  const elementMap: Record<string, ElementInfo> = {};
+  let counter = 0;
+  const openTagRE = /<note\b[^>]*>/g;
+
+  const newLines = lines.map((line, idx) =>
+    line.replace(openTagRE, (full) => {
+      const xmlId = `${uid}-el${++counter}`;
+      elementMap[xmlId] = { line: idx + 1, index: counter };
+      return full.replace(/^<note/, `<note xml:id="${xmlId}"`);
+    })
+  );
+
+  return { code: newLines.join('\n'), elementMap };
+}
+
+/** Haupt-Renderer */
 export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
   source: string,
@@ -45,73 +71,91 @@ export async function processVerovioCodeBlocks(
   }
 
   try {
-    // 1) Quelle parsen
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
-    let mr = measureRange;
-    if (mr && /^\d+$/.test(mr)) mr = `${mr}-${mr}`;
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
 
-    // 2) Roh-MEI erzeugen
+    let workingCode = code;
+    let elementMap: Record<string, ElementInfo> = {};
+
+    if (format === 'mei' && code) {
+      const parsed = injectIdsAndMap(code, uid);
+      workingCode = parsed.code;
+      elementMap = parsed.elementMap;
+    }
+
     let rawMEI: string;
-    if (code) {
-      rawMEI = format === 'mei'
-        ? code
-        : window.VerovioToolkit.renderData(code, {});
+    if (workingCode) {
+      rawMEI = format === 'mei' ? workingCode : window.VerovioToolkit.renderData(workingCode, {});
     } else if (filePath) {
       rawMEI = await fetchMEIData.call(this, filePath);
-      // optional Quelle merken
-      sourceMap[source] = filePath;
+      // Fix: Mapping UID statt Source
+      sourceMap[uid] = filePath;
     } else {
       throw new Error('Neither inline code nor file path provided.');
     }
 
-    // 3) Optionen setzen und laden
-    const mergedOptions = { ...this.settings, ...options };
-    window.VerovioToolkit.setOptions(mergedOptions);
+    const merged = { ...this.settings, ...options };
+    window.VerovioToolkit.setOptions(merged);
     window.VerovioToolkit.loadData(rawMEI);
-
-    if (mr) {
-      if (!window.VerovioToolkit.select({ measureRange: mr })) {
-        throw new Error(`Failed to apply measureRange: ${mr}`);
-      }
+    if (measureRange && /^\d+$/.test(measureRange)) {
+      window.VerovioToolkit.select({ measureRange: `${measureRange}-${measureRange}` });
       window.VerovioToolkit.redoLayout();
     }
 
-    // 4) UID & State speichern
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
-    const meiData = window.VerovioToolkit.getMEI();
-    const totalPages = window.VerovioToolkit.getPageCount();
     instanceStateMap[uid] = {
-      meiData,
-      options: mergedOptions,
-      measureRange: mr,
+      meiData: window.VerovioToolkit.getMEI(),
+      options: merged,
+      measureRange,
       currentPage: 1,
-      totalPages,
+      totalPages: window.VerovioToolkit.getPageCount(),
     };
 
-    // 5) Mapping für Editor merken
     const section = ctx.getSectionInfo?.(el);
     if (section && ctx.sourcePath) {
+      const absMap: Record<string, ElementInfo> = {};
+      Object.entries(elementMap).forEach(([id, info]) => {
+        absMap[id] = {
+          line: section.lineStart + info.line - 1 + LINE_JUMP_OFFSET,
+          index: info.index
+        };
+      });
       clickMap[uid] = {
         filePath: ctx.sourcePath,
         startLine: section.lineStart,
         endLine: section.lineEnd,
+        elementMap: absMap,
       };
     }
 
-    // 6) Container bauen
     const container = createContainer.call(this, uid);
     el.appendChild(container);
 
-    // 7) Klick‑Handler: lastClickedUid + openBlock
-    container.addEventListener('click', () => {
+    // Editor-Öffnen
+    const svgWrapper = container.querySelector('.verovio-svg-wrapper');
+    svgWrapper?.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.lastClickedUid = uid;
-      console.log('Verovio SVG clicked → lastClickedUid set.');
       const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
-      if (leaves.length) {
-        const view = leaves[0].view as MusicEditorView;
-        view.openBlock(uid);
-      }
+      if (leaves.length) (leaves[0].view as MusicEditorView).openBlock(uid, '');
     });
+
+    setTimeout(() => {
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+      Object.keys(clickMap[uid].elementMap).forEach(id => {
+        const node = svg.querySelector(`#${id}`);
+        if (node) {
+          node.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            this.lastClickedUid = uid;
+            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
+            if (leaves.length) (leaves[0].view as MusicEditorView).openBlock(uid, id);
+          });
+        }
+      });
+    }, 100);
+
+    return container;
   } catch (err: any) {
     new Notice(`Error rendering Verovio: ${err.message}`);
   }
@@ -123,11 +167,9 @@ async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
     if (res.status !== 200) throw new Error(res.statusText);
     return res.text;
   }
-  const file = this.app.vault.getAbstractFileByPath(path);
-  if (!file || !(file instanceof TFile)) {
-    throw new Error(`File not found: ${path}`);
-  }
-  return await this.app.vault.read(file as TFile);
+  const file = this.app.vault.getAbstractFileByPath(path) as TFile;
+  if (!file) throw new Error(`File not found: ${path}`);
+  return this.app.vault.read(file as TFile);
 }
 
 function createContainer(this: VerovioMusicRenderer, uid: string) {
@@ -135,10 +177,10 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
   container.className = 'verovio-container';
   container.dataset.uid = uid;
 
-  const svgWrapper = document.createElement('div');
-  svgWrapper.className = 'verovio-svg-wrapper';
-  updateSVG(uid, svgWrapper);
-  container.appendChild(svgWrapper);
+  const svgWrap = document.createElement('div');
+  svgWrap.className = 'verovio-svg-wrapper';
+  updateSVG(uid, svgWrap);
+  container.appendChild(svgWrap);
 
   const toolbar = document.createElement('div');
   toolbar.className = 'verovio-toolbar';
@@ -161,21 +203,17 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
     window.VerovioToolkit.select({ measureRange: st.measureRange });
     window.VerovioToolkit.redoLayout();
   }
-  const svgString = window.VerovioToolkit.renderToSVG(st.currentPage);
-  const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
-  const svgEl = doc.querySelector('svg');
+  const svgStr = window.VerovioToolkit.renderToSVG(st.currentPage);
+  const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
   wrapper.innerHTML = '';
-  if (svgEl) wrapper.appendChild(svgEl);
-  else wrapper.textContent = 'Error rendering SVG';
+  wrapper.appendChild(doc.documentElement);
 }
 
 export function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
-  const wrapper = document.querySelector(
-    `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
-  ) as HTMLElement;
-  updateSVG(uid, wrapper);
+  const wrap = document.querySelector(`.verovio-container[data-uid=\"${uid}\"] .verovio-svg-wrapper`) as HTMLElement;
+  updateSVG(uid, wrap);
 }
 
 function createBtn(icon: string, cb: () => void) {
