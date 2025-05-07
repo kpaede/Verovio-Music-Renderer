@@ -8,7 +8,7 @@ import { EditorState } from '@codemirror/state';
 import { basicSetup } from '@codemirror/basic-setup';
 import { xml } from '@codemirror/lang-xml';
 
-export const VIwoEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
+export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
 interface ElementInfo { line: number; index: number; }
 
