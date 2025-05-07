@@ -1,13 +1,19 @@
-import { ItemView, Notice, TFile } from 'obsidian';
+import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import type VerovioMusicRenderer from './main';
 import { clickMap } from './verovioProcessor';
+
+// CodeMirror‑Module
+import { EditorView as CMEditorView } from '@codemirror/view';
+import { EditorState }           from '@codemirror/state';
+import { basicSetup }            from '@codemirror/basic-setup';
+import { xml } from '@codemirror/lang-xml';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
 export class MusicEditorView extends ItemView {
   plugin: VerovioMusicRenderer;
 
-  constructor(leaf, plugin: VerovioMusicRenderer) {
+  constructor(leaf: WorkspaceLeaf, plugin: VerovioMusicRenderer) {
     super(leaf);
     this.plugin = plugin;
   }
@@ -31,7 +37,7 @@ export class MusicEditorView extends ItemView {
     return Promise.resolve();
   }
 
-  /** Lädt und zeigt den Block mit UID */
+  /** Lädt und zeigt den Block mit der gegebenen UID */
   public async openBlock(uid: string): Promise<void> {
     const mapping = clickMap[uid];
     if (!mapping) {
@@ -44,6 +50,7 @@ export class MusicEditorView extends ItemView {
       new Notice(`Datei nicht gefunden: ${filePath}`);
       return;
     }
+
     const text = await this.app.vault.read(file);
     const allLines = text.split('\n');
     const blockLines = allLines.slice(startLine + 1, endLine);
@@ -56,35 +63,40 @@ export class MusicEditorView extends ItemView {
     blockStart: number,
     blockEnd: number
   ) {
+    // Container aufräumen
     this.contentEl.empty();
     this.contentEl.style.padding = '0';
-    this.contentEl.style.margin = '0';
-    this.contentEl.style.height = '100%';
+    this.contentEl.style.margin  = '0';
+    this.contentEl.style.height  = '100%';
 
-    const ta = this.contentEl.createEl('textarea');
-    ta.value = blockText;
-    ta.style.width = '100%';
-    ta.style.height = '100%';
-    ta.style.boxSizing = 'border-box';
-    ta.style.padding = '8px';
-    ta.style.fontFamily = 'monospace';
-    ta.style.fontSize = '14px';
-    ta.style.border = 'none';
-    ta.style.outline = 'none';
-    ta.style.resize = 'none';
-    ta.focus();
+    // CodeMirror-State konfigurieren mit XML-Highlighting
+    const state = EditorState.create({
+      doc: blockText,
+      extensions: [
+        basicSetup,
+        xml(),
+        CMEditorView.updateListener.of(async (update) => {
+          if (update.docChanged) {
+            const updatedText = update.state.doc.toString();
+            const full = await this.app.vault.read(file);
+            const lines = full.split('\n');
+            const before = lines.slice(0, blockStart);
+            const after  = lines.slice(blockEnd);
+            const combined = [
+              ...before,
+              ...updatedText.split('\n'),
+              ...after
+            ].join('\n');
+            await this.app.vault.modify(file, combined);
+          }
+        })
+      ]
+    });
 
-    ta.addEventListener('input', async () => {
-      const full = await this.app.vault.read(file);
-      const lines = full.split('\n');
-      const before = lines.slice(0, blockStart);
-      const after = lines.slice(blockEnd);
-      const updated = [
-        ...before,
-        ...ta.value.split('\n'),
-        ...after
-      ].join('\n');
-      await this.app.vault.modify(file, updated);
+    // Editor initialisieren und in das Panel hängen
+    new CMEditorView({
+      state,
+      parent: this.contentEl
     });
   }
 }
