@@ -133,7 +133,9 @@ COPY FROM HERE
 ```COPY UNTIL HERE
 ```
 ## Side Panel
-You can open a side panel where you can directly edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. That of course only works for MEI code in the code block, not for linked files.
+You can open a side panel via the Obsidian Command Palette to edit your musical code directly, complete with XML and MEI syntax highlighting. Clicking on a rendered note will jump you to the corresponding line of code—but this only works for MEI inside a code block, not for externally linked files.
+
+![](sidepanel.png)
 
 ## Rendering Options
 In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings. 
