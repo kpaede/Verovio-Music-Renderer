@@ -19,6 +19,12 @@ export function playMIDI(uid: string) {
   const midiData = window.VerovioToolkit.renderToMIDI();
   if (!midiData) return;
 
+  // Erzeuge Timemap für getElementsAtTime
+  if (typeof window.VerovioToolkit.renderToTimemap === 'function') {
+    // Einmalig Timemap erstellen, um valid notes-Arrays zu erhalten
+    window.VerovioToolkit.renderToTimemap({});
+  }
+
   const origAdd = MIDI.Player.addListener;
   MIDI.Player.addListener = (cb: (data: any) => void) =>
     origAdd.call(MIDI.Player, (data: any) => {
@@ -37,13 +43,18 @@ export function playMIDI(uid: string) {
     MIDI.Player.start();
     MIDI.Player.setAnimation(({ now }) => {
       const currentMs = now * 1000 + NOTE_ON_OFFSET;
-      const elements = window.VerovioToolkit.getElementsAtTime(currentMs);
+      const elements = window.VerovioToolkit.getElementsAtTime(currentMs) || {};
       if (elements.page > 0 && elements.page !== st.currentPage) {
         st.currentPage = elements.page;
         updateSVG(uid, svgWrapper);
       }
+
+      // Entferne alle aktuellen Playing-Klassen
       container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
-      elements.notes.forEach(id => {
+
+      // Sicheres Iterieren über notes
+      const notes: any[] = Array.isArray(elements.notes) ? elements.notes : [];
+      notes.forEach(id => {
         const noteEl = container.querySelector(`g.note#${id}`);
         noteEl?.classList.add('playing');
       });

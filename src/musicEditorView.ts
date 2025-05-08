@@ -2,9 +2,16 @@ import VerovioMusicRenderer from './main';
 import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import { clickMap } from './verovioProcessor';
 
-// CodeMirror-Module
-import { EditorView as CMEditorView } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+// CodeMirror 6
+import {
+  EditorView as CMEditorView,
+  ViewUpdate,
+  highlightActiveLine
+} from '@codemirror/view';
+import {
+  EditorState,
+  EditorSelection
+} from '@codemirror/state';
 import { basicSetup } from '@codemirror/basic-setup';
 import { xml } from '@codemirror/lang-xml';
 
@@ -12,10 +19,39 @@ export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
 interface ElementInfo { line: number; index: number; }
 
+/** Debounce-Helfer: führt fn frühestens wait ms nach letztem Aufruf aus */
+function debounce<F extends (...args: any[]) => void>(fn: F, wait: number): F {
+  let timer: number;
+  return ((...args: any[]) => {
+    clearTimeout(timer);
+    timer = window.setTimeout(() => fn(...args), wait);
+  }) as F;
+}
+
+/** Theme-Override: kräftigere Hervorhebung der aktiven Zeile */
+const activeLineTheme = CMEditorView.theme({
+  '.cm-activeLine': {
+    backgroundColor: 'rgba(100, 150, 250, 0.3)',
+  }
+});
+
+/** Theme-Override: Schriftgröße im Editor verkleinern */
+const codeFontTheme = CMEditorView.theme({
+  '& .cm-content': {
+    fontSize: '0.85em'
+  }
+});
+
 export class MusicEditorView extends ItemView {
   plugin: VerovioMusicRenderer;
   private currentEditor?: CMEditorView;
   private currentElementMap?: Record<string, ElementInfo>;
+
+  // In-Memory-Snapshot der geladenen Datei
+  private origLines: string[] = [];
+  private file!: TFile;
+  private fileStartLine = 0;
+  private fileEndLine = 0;
 
   constructor(leaf: WorkspaceLeaf, plugin: VerovioMusicRenderer) {
     super(leaf);
@@ -27,74 +63,102 @@ export class MusicEditorView extends ItemView {
 
   async onOpen(): Promise<void> {
     this.contentEl.empty();
-    this.contentEl.createEl('p', { text: 'Bitte ein Verovio-Rendering anklicken oder das Panel neu öffnen.' });
+    this.contentEl.createEl('p', {
+      text: 'Bitte ein Verovio-Rendering anklicken oder das Panel neu öffnen.'
+    });
   }
 
   onClose(): Promise<void> { return Promise.resolve(); }
 
-  /** Öffnet den Code-Block und springt auf das Element mit elementId */
+  /** Datei laden, Snapshot speichern, und Editor öffnen */
   public async openBlock(uid: string, elementId: string): Promise<void> {
     const mapping = clickMap[uid];
     if (!mapping) {
       new Notice('Zuordnung nicht gefunden.');
       return;
     }
+
     const { filePath, startLine, endLine, elementMap } = mapping;
     const file = this.app.vault.getAbstractFileByPath(filePath) as TFile;
     if (!file) {
       new Notice(`Datei nicht gefunden: ${filePath}`);
       return;
     }
-    const fullText = await this.app.vault.read(file);
-    const lines = fullText.split('\n');
-    const blockLines = lines.slice(startLine, endLine);
-    const blockText = blockLines.join('\n');
+
+    const content = await this.app.vault.read(file);
+    const lines = content.split('\n');
+
+    this.origLines        = lines;
+    this.file             = file;
+    this.fileStartLine    = startLine;
+    this.fileEndLine      = endLine;
     this.currentElementMap = elementMap;
-    this.showEditor(blockText, file, startLine, endLine, elementId);
+
+    const blockText = lines.slice(startLine, endLine).join('\n');
+    this.showEditor(blockText, elementId);
   }
 
-  /** Erstellt den Editor und synchronisiert nur beim Verlassen */
-  private showEditor(
-    blockText: string,
-    file: TFile,
-    startLine: number,
-    endLine: number,
-    elementId: string
-  ) {
+  /** Editor einrichten und debounced bei jeder Änderung speichern */
+  private showEditor(blockText: string, elementId: string) {
     this.contentEl.empty();
     this.contentEl.style.padding = '0';
-    this.contentEl.style.margin = '0';
-    this.contentEl.style.height = '100%';
+    this.contentEl.style.margin  = '0';
+    this.contentEl.style.height  = '100%';
 
-    const state = EditorState.create({
-      doc: blockText,
-      extensions: [basicSetup, xml()]
+    // Debounced-Save: tauscht nur den Block-Bereich aus
+    const save = debounce(async () => {
+      try {
+        const updated = this.currentEditor!.state.doc.toString().split('\n');
+        const before  = this.origLines.slice(0, this.fileStartLine);
+        const after   = this.origLines.slice(this.fileEndLine);
+        const merged  = [...before, ...updated, ...after];
+        await this.app.vault.modify(this.file, merged.join('\n'));
+        this.origLines   = merged;
+        this.fileEndLine = this.fileStartLine + updated.length;
+      } catch (e) {
+        console.error('Speichern fehlgeschlagen:', e);
+        new Notice('Speichern des Code-Blocks fehlgeschlagen. Siehe Konsole.');
+      }
+    }, 300);
+
+    // Change-Listener nur bei echten doc-Änderungen
+    const changeExt = CMEditorView.updateListener.of((v: ViewUpdate) => {
+      if (v.docChanged) save();
     });
 
-    const editor = new CMEditorView({ state, parent: this.contentEl });
-    this.currentEditor = editor;
+    // State mit allen Extensions
+    const state = EditorState.create({
+      doc: blockText,
+      extensions: [
+        basicSetup,
+        xml(),
+        changeExt,
+        highlightActiveLine(),
+        activeLineTheme,
+        codeFontTheme
+      ]
+    });
 
-    // Wenn Editor-Fokus verloren geht, Datei updaten
-    editor.dom.addEventListener('blur', async () => {
-      const updatedLines = editor.state.doc.toString().split('\n');
-      const original = await this.app.vault.read(file);
-      const origLines = original.split('\n');
-      const newContentLines = [
-        ...origLines.slice(0, startLine),
-        ...updatedLines,
-        ...origLines.slice(endLine)
-      ];
-      await this.app.vault.modify(file, newContentLines.join('\n'));
-    }, true);
+    // Editor erzeugen
+    this.currentEditor = new CMEditorView({ state, parent: this.contentEl });
 
-    // Positioniere Cursor am gewünschten Element
+    // Cursor & Scroll: aktive Zeile nicht am unteren Rand, sondern weiter oben
     if (elementId && this.currentElementMap) {
       const info = this.currentElementMap[elementId];
       if (info) {
-        const relLine = info.line - startLine;
-        const lineNum = Math.min(Math.max(1, relLine), editor.state.doc.lines);
-        const line = editor.state.doc.line(lineNum);
-        editor.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+        const relLine = info.line - this.fileStartLine;
+        const lineNum = Math.min(Math.max(1, relLine), this.currentEditor.state.doc.lines);
+        const line    = this.currentEditor.state.doc.line(lineNum);
+
+        // 1. Selektion setzen
+        // 2. Scroll-Effekt nutzen: y="start" (oben ausrichten) + 50px Margin
+        this.currentEditor.dispatch({
+          selection: EditorSelection.range(line.from, line.from),
+          effects: CMEditorView.scrollIntoView(
+            EditorSelection.range(line.from, line.from),
+            { y: "start", yMargin: 50 }
+          )
+        });
       }
     }
   }

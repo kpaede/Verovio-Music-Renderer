@@ -82,7 +82,17 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
     };
   }
 
-  // 3) Automatische Inline-Erkennung
+  // 3) Plaine and Easie inline detection (beginnend mit @)
+  if (nonEmpty[0]?.startsWith('@')) {
+    return {
+      format: 'abc',
+      code: codeLines.join('\n').trim(),
+      options,
+      measureRange
+    };
+  }
+
+  // 4) Automatische Inline-Erkennung
   if (nonEmpty[0]?.startsWith('<mei')) {
     return { format: 'mei', code: codeLines.join('\n').trim(), options, measureRange };
   }
@@ -93,7 +103,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
     return { format: 'abc', code: codeLines.join('\n').trim(), options, measureRange };
   }
 
-  // 4) Datei-Modus (erste Zeile = Pfad)
+  // 5) Datei-Modus (erste Zeile = Pfad)
   const filePath = nonEmpty.shift();
   let fileFormat: VerovioFormat = 'mei';
   const ext = filePath?.split('.').pop()?.toLowerCase();
