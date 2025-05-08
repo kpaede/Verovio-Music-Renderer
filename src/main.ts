@@ -27,7 +27,7 @@ export default class VerovioMusicRenderer extends Plugin {
 
     this.addCommand({
       id: 'open-verovio-code-editor',
-      name: 'Verovio Code Editor öffnen',
+      name: 'Open Verovio Code Editor.',
       callback: () => {
         const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
         const leaf = leaves.length

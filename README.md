@@ -6,14 +6,15 @@ This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https:/
 
 The plugin currently has the following features:
 - Rendering MEI, ABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
+- A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options.
 - Sound playback of the rendered music.
-- Highlighting of live playback notes, synced to the sound playback (syncing is still not fully reliable, though).
+- Highlighting of live playback notes, synced to the sound playback.
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
 - Rendering specific measure selections.
-- Page turning buttons and automatic page turning
-- A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
+- Page turning buttons and automatic page turning during playback
+
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:

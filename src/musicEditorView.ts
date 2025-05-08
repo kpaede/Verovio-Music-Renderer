@@ -64,7 +64,7 @@ export class MusicEditorView extends ItemView {
   async onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.createEl('p', {
-      text: 'Bitte ein Verovio-Rendering anklicken oder das Panel neu öffnen.'
+      text: 'Pleanse open a Verovio-Rendering or re-open the panel.'
     });
   }
 
