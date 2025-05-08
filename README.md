@@ -13,6 +13,7 @@ The plugin currently has the following features:
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
 - Rendering specific measure selections.
 - Page turning buttons and automatic page turning
+- A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 
 ## How to Use
 Install the plugin, then copy the following into your Obsidian document:
@@ -131,7 +132,8 @@ COPY FROM HERE
 @data:2''C'B/=/''CC/=/2-4DE/2-8{'B''C+C'B}/2''C-//
 ```COPY UNTIL HERE
 ```
-
+## Side Panel
+You can open a side panel where you can directly edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. That of course only works for MEI code in the code block, not for linked files.
 
 ## Rendering Options
 In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings. 
