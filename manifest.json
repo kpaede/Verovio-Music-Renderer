@@ -1,7 +1,7 @@
 {
 	"id": "verovio-music-renderer",
 	"name": "Verovio Music Renderer",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"minAppVersion": "0.15.0",
 	"description": "Rendering, playback and download of musical notation.",
 	"author": "Kornelius Paede",

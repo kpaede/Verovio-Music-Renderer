@@ -74,14 +74,14 @@ export class MusicEditorView extends ItemView {
   public async openBlock(uid: string, elementId: string): Promise<void> {
     const mapping = clickMap[uid];
     if (!mapping) {
-      new Notice('Zuordnung nicht gefunden.');
+      new Notice('Attachment not found.');
       return;
     }
 
     const { filePath, startLine, endLine, elementMap } = mapping;
     const file = this.app.vault.getAbstractFileByPath(filePath) as TFile;
     if (!file) {
-      new Notice(`Datei nicht gefunden: ${filePath}`);
+      new Notice(`File not found.: ${filePath}`);
       return;
     }
 
@@ -116,8 +116,8 @@ export class MusicEditorView extends ItemView {
         this.origLines   = merged;
         this.fileEndLine = this.fileStartLine + updated.length;
       } catch (e) {
-        console.error('Speichern fehlgeschlagen:', e);
-        new Notice('Speichern des Code-Blocks fehlgeschlagen. Siehe Konsole.');
+        console.error('Save failed.:', e);
+        new Notice('Saving in Code Block Failed.');
       }
     }, 300);
 
