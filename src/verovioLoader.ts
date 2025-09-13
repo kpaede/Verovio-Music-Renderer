@@ -1,5 +1,4 @@
-declare const verovio: any;
-import 'verovio';
+import verovio from 'verovio';
 
 export async function loadVerovio() {
   if (window.VerovioToolkit) return;

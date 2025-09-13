@@ -4,7 +4,5 @@ declare global {
   }
 }
 
-declare module 'lz-midi';
-declare module 'verovio';
 
 export {};
