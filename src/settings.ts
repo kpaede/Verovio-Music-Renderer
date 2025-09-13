@@ -9,7 +9,6 @@ export interface VerovioPluginSettings {
   pageWidth: number;
   font: string;
   darkMode: boolean;
-  autoDetectTheme: boolean;
   customNoteColor: string;
   customStaffColor: string;
 }
@@ -22,7 +21,6 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   pageWidth: 700,
   font: 'Leland',
   darkMode: false,
-  autoDetectTheme: true,
   customNoteColor: '#ffffff',
   customStaffColor: '#ffffff'
 }
@@ -112,23 +110,10 @@ export class VerovioSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('Auto-detect theme')
-      .setDesc('Automatically detect dark/light mode from Obsidian theme')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.autoDetectTheme)
-        .onChange(async (value) => {
-          this.plugin.settings.autoDetectTheme = value;
-          await this.plugin.saveSettings();
-          // Refresh the settings display to update dark mode toggle state
-          this.display();
-        }));
-
-    new Setting(containerEl)
       .setName('Dark mode')
-      .setDesc('Render white notes for dark backgrounds (disabled when auto-detect is on)')
+      .setDesc('Render white notes for dark backgrounds')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.darkMode)
-        .setDisabled(this.plugin.settings.autoDetectTheme)
         .onChange(async (value) => {
           this.plugin.settings.darkMode = value;
           await this.plugin.saveSettings();

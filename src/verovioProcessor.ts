@@ -42,16 +42,9 @@ const LINE_JUMP_OFFSET = 2;
  * Generiert CSS für Dark Mode basierend auf den Plugin-Settings
  */
 function generateDarkModeCSS(plugin: VerovioMusicRenderer): string {
-  const isDarkMode = plugin.settings.autoDetectTheme 
-    ? document.body.classList.contains('theme-dark')
-    : plugin.settings.darkMode;
-
-  if (!isDarkMode) {
-    return '';
-  }
-
-  const noteColor = plugin.settings.customNoteColor || '#ffffff';
-  const staffColor = plugin.settings.customStaffColor || '#ffffff';
+  const isDarkMode = plugin.settings.darkMode;
+  const noteColor = isDarkMode ? (plugin.settings.customNoteColor || '#ffffff') : '#000000';
+  const staffColor = isDarkMode ? (plugin.settings.customStaffColor || '#ffffff') : '#000000';
 
   return `
     .note { fill: ${noteColor}; }
@@ -144,7 +137,7 @@ export async function processVerovioCodeBlocks(
     const darkModeCSS = generateDarkModeCSS(this);
 
     // Settings nur mit erlaubten Keys an Verovio geben:
-    const { autoDetectTheme, darkMode, customNoteColor, customStaffColor, ...verovioSettings } = this.settings;
+    const { darkMode, customNoteColor, customStaffColor, ...verovioSettings } = this.settings;
 
     const merged = { 
       ...verovioSettings, 

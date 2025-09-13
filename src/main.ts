@@ -43,11 +43,6 @@ export default class VerovioMusicRenderer extends Plugin {
         }
       },
     });
-
-    // Theme change observer for automatic dark mode detection
-    if (this.settings.autoDetectTheme) {
-      this.startThemeObserver();
-    }
   }
 
   private async loadVerovioSafely() {
@@ -60,13 +55,6 @@ export default class VerovioMusicRenderer extends Plugin {
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
-    // Restart theme observer wenn auto-detect aktiviert wurde
-    if (this.settings.autoDetectTheme && !this.themeObserver) {
-      this.startThemeObserver();
-    } else if (!this.settings.autoDetectTheme && this.themeObserver) {
-      this.stopThemeObserver();
-    }
     // Update all existing SVGs
     this.updateAllSVGs();
   }
