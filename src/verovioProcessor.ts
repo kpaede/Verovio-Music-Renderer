@@ -142,12 +142,18 @@ export async function processVerovioCodeBlocks(
     }
 
     const darkModeCSS = generateDarkModeCSS(this);
+
+    // Settings nur mit erlaubten Keys an Verovio geben:
+    const { autoDetectTheme, darkMode, customNoteColor, customStaffColor, ...verovioSettings } = this.settings;
+
     const merged = { 
-      ...this.settings, 
+      ...verovioSettings, 
       ...options,
       ...(darkModeCSS ? { svgCss: darkModeCSS } : {})
     };
+
     window.VerovioToolkit.setOptions(merged);
+
     window.VerovioToolkit.loadData(rawMEI);
     if (measureRange && /^\d+$/.test(measureRange)) {
       window.VerovioToolkit.select({ measureRange: `${measureRange}-${measureRange}` });
