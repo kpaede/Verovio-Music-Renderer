@@ -8,6 +8,10 @@ export interface VerovioPluginSettings {
   breaks: string;
   pageWidth: number;
   font: string;
+  darkMode: boolean;
+  autoDetectTheme: boolean;
+  customNoteColor: string;
+  customStaffColor: string;
 }
 
 export const DEFAULT_SETTINGS: VerovioPluginSettings = {
@@ -16,7 +20,11 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   adjustPageWidth: true,
   breaks: 'auto',
   pageWidth: 700,
-  font: 'Leland'
+  font: 'Leland',
+  darkMode: false,
+  autoDetectTheme: true,
+  customNoteColor: '#ffffff',
+  customStaffColor: '#ffffff'
 }
 
 export class VerovioSettingTab extends PluginSettingTab {
@@ -100,6 +108,51 @@ export class VerovioSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.font)
         .onChange(async (value) => {
           this.plugin.settings.font = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Auto-detect theme')
+      .setDesc('Automatically detect dark/light mode from Obsidian theme')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.autoDetectTheme)
+        .onChange(async (value) => {
+          this.plugin.settings.autoDetectTheme = value;
+          await this.plugin.saveSettings();
+          // Refresh the settings display to update dark mode toggle state
+          this.display();
+        }));
+
+    new Setting(containerEl)
+      .setName('Dark mode')
+      .setDesc('Render white notes for dark backgrounds (disabled when auto-detect is on)')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.darkMode)
+        .setDisabled(this.plugin.settings.autoDetectTheme)
+        .onChange(async (value) => {
+          this.plugin.settings.darkMode = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Custom note color')
+      .setDesc('Color for notes in dark mode (hex format)')
+      .addText(text => text
+        .setPlaceholder('#ffffff')
+        .setValue(this.plugin.settings.customNoteColor)
+        .onChange(async (value) => {
+          this.plugin.settings.customNoteColor = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Custom staff line color')
+      .setDesc('Color for staff lines in dark mode (hex format)')
+      .addText(text => text
+        .setPlaceholder('#ffffff')
+        .setValue(this.plugin.settings.customStaffColor)
+        .onChange(async (value) => {
+          this.plugin.settings.customStaffColor = value;
           await this.plugin.saveSettings();
         }));
   }

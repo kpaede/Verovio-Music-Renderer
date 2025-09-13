@@ -1,5 +1,6 @@
 // midiController.ts
-import MIDI from 'lz-midi';
+declare const MIDI: any;
+import 'lz-midi';
 import { instanceStateMap, changePage, updateSVG, NOTE_ON_OFFSET, NOTE_OFF_OFFSET } from './verovioProcessor';
 
 export function playMIDI(uid: string) {
@@ -41,7 +42,7 @@ export function playMIDI(uid: string) {
 
   MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
     MIDI.Player.start();
-    MIDI.Player.setAnimation(({ now }) => {
+    MIDI.Player.setAnimation(({ now }: any) => {
       const currentMs = now * 1000 + NOTE_ON_OFFSET;
       const elements = window.VerovioToolkit.getElementsAtTime(currentMs) || {};
       if (elements.page > 0 && elements.page !== st.currentPage) {

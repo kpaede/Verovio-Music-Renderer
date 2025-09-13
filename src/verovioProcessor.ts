@@ -39,6 +39,53 @@ export const NOTE_OFF_OFFSET = 0.01;
 const LINE_JUMP_OFFSET = 2;
 
 /**
+ * Generiert CSS für Dark Mode basierend auf den Plugin-Settings
+ */
+function generateDarkModeCSS(plugin: VerovioMusicRenderer): string {
+  const isDarkMode = plugin.settings.autoDetectTheme 
+    ? document.body.classList.contains('theme-dark')
+    : plugin.settings.darkMode;
+
+  if (!isDarkMode) {
+    return '';
+  }
+
+  const noteColor = plugin.settings.customNoteColor || '#ffffff';
+  const staffColor = plugin.settings.customStaffColor || '#ffffff';
+
+  return `
+    .note { fill: ${noteColor}; }
+    .notehead { fill: ${noteColor}; }
+    .stem { fill: ${noteColor}; stroke: ${noteColor}; }
+    .accid { fill: ${noteColor}; }
+    .artic { fill: ${noteColor}; }
+    .beam { fill: ${noteColor}; stroke: ${noteColor}; }
+    .flag { fill: ${noteColor}; }
+    .dots { fill: ${noteColor}; }
+    .rest { fill: ${noteColor}; }
+    .mrest { fill: ${noteColor}; }
+    .mrpt { fill: ${noteColor}; }
+    .tie { stroke: ${noteColor}; fill: none; }
+    .slur { stroke: ${noteColor}; fill: none; }
+    .staff path { stroke: ${staffColor}; }
+    .staff ellipse { stroke: ${staffColor}; fill: ${staffColor}; }
+    .ledgerLines { stroke: ${staffColor}; }
+    .barLine * { stroke: ${staffColor}; fill: ${staffColor}; }
+    .clef { fill: ${noteColor}; }
+    .keySig { fill: ${noteColor}; }
+    .meterSig { fill: ${noteColor}; }
+    .tempo { fill: ${noteColor}; }
+    .dir { fill: ${noteColor}; }
+    .dynam { fill: ${noteColor}; }
+    .harm { fill: ${noteColor}; }
+    .lyrics { fill: ${noteColor}; }
+    .tupletNum { fill: ${noteColor}; }
+    .tupletBracket { stroke: ${noteColor}; }
+    text { fill: ${noteColor}; }
+  `;
+}
+
+/**
  * Parst MEI, injiziert xml:id nur für <note>-Tags und baut elementMap (relativ zur MEI-String-Zeile)
  */
 function injectIdsAndMap(mei: string, uid: string): { code: string; elementMap: Record<string, ElementInfo> } {
@@ -94,7 +141,12 @@ export async function processVerovioCodeBlocks(
       throw new Error('Neither inline code nor file path provided.');
     }
 
-    const merged = { ...this.settings, ...options };
+    const darkModeCSS = generateDarkModeCSS(this);
+    const merged = { 
+      ...this.settings, 
+      ...options,
+      ...(darkModeCSS ? { svgCss: darkModeCSS } : {})
+    };
     window.VerovioToolkit.setOptions(merged);
     window.VerovioToolkit.loadData(rawMEI);
     if (measureRange && /^\d+$/.test(measureRange)) {
@@ -132,7 +184,7 @@ export async function processVerovioCodeBlocks(
 
     // Editor-Öffnen
     const svgWrapper = container.querySelector('.verovio-svg-wrapper');
-    svgWrapper?.addEventListener('click', (e) => {
+    svgWrapper?.addEventListener('click', (e: Event) => {
       e.stopPropagation();
       this.lastClickedUid = uid;
       const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
@@ -145,7 +197,7 @@ export async function processVerovioCodeBlocks(
       Object.keys(clickMap[uid].elementMap).forEach(id => {
         const node = svg.querySelector(`#${id}`);
         if (node) {
-          node.addEventListener('click', (ev) => {
+          node.addEventListener('click', (ev: Event) => {
             ev.stopPropagation();
             this.lastClickedUid = uid;
             const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
@@ -164,7 +216,7 @@ export async function processVerovioCodeBlocks(
 async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
   if (/^https?:\/\//.test(path)) {
     const res = await requestUrl({ url: path });
-    if (res.status !== 200) throw new Error(res.statusText);
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
     return res.text;
   }
   const file = this.app.vault.getAbstractFileByPath(path) as TFile;
@@ -179,13 +231,13 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
 
   const svgWrap = document.createElement('div');
   svgWrap.className = 'verovio-svg-wrapper';
-  updateSVG(uid, svgWrap);
+  updateSVG(uid, svgWrap, this);
   container.appendChild(svgWrap);
 
   const toolbar = document.createElement('div');
   toolbar.className = 'verovio-toolbar';
-  toolbar.appendChild(createBtn('chevron-left', () => changePage(uid, -1)));
-  toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, 1)));
+  toolbar.appendChild(createBtn('chevron-left', () => changePage(uid, -1, this)));
+  toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, 1, this)));
   toolbar.appendChild(createBtn('play', () => playMIDI(uid)));
   toolbar.appendChild(createBtn('square', () => stopMIDI(uid)));
   toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
@@ -195,9 +247,12 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
   return container;
 }
 
-export function updateSVG(uid: string, wrapper: HTMLElement) {
+export function updateSVG(uid: string, wrapper: HTMLElement, plugin?: VerovioMusicRenderer) {
   const st = instanceStateMap[uid];
-  window.VerovioToolkit.setOptions(st.options);
+  const optionsToUse = plugin 
+    ? { ...st.options, ...(generateDarkModeCSS(plugin) ? { svgCss: generateDarkModeCSS(plugin) } : {}) }
+    : st.options;
+  window.VerovioToolkit.setOptions(optionsToUse);
   window.VerovioToolkit.loadData(st.meiData);
   if (st.measureRange) {
     window.VerovioToolkit.select({ measureRange: st.measureRange });
@@ -209,11 +264,11 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   wrapper.appendChild(doc.documentElement);
 }
 
-export function changePage(uid: string, delta: number) {
+export function changePage(uid: string, delta: number, plugin?: VerovioMusicRenderer) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
-  const wrap = document.querySelector(`.verovio-container[data-uid=\"${uid}\"] .verovio-svg-wrapper`) as HTMLElement;
-  updateSVG(uid, wrap);
+  const wrap = document.querySelector(`.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`) as HTMLElement;
+  updateSVG(uid, wrap, plugin);
 }
 
 function createBtn(icon: string, cb: () => void) {
