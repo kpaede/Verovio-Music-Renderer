@@ -1,9 +1,9 @@
 {
 	"id": "verovio-music-renderer",
 	"name": "Verovio Music Renderer",
-	"version": "1.0.8",
+	"version": "1.0.9",
 	"minAppVersion": "0.15.0",
-	"description": "Rendering, playback and download of musical notation.",
+	"description": "Rendering, playback and export of MEI, MusicXML, ABC and PAE music notation files and embeds.",
 	"author": "Kornelius Paede",
 	"authorUrl": "https://dramturgie.lol",
 	"isDesktopOnly": false

@@ -2,13 +2,13 @@
 
 ![](demo.gif)
 
-This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC and MusicXML files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, enhancing your efficiency when working with written music.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC,  MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
 - Rendering MEI, ABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
 - A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
-- A settings menu to adjust various rendering options.
+- A settings menu to adjust various rendering options (including a dark mode and highlight color).
 - Sound playback of the rendered music.
 - Highlighting of live playback notes, synced to the sound playback.
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
@@ -139,7 +139,7 @@ You can open a side panel via the Obsidian Command Palette to edit your musical 
 ![](sidepanel.png)
 
 ## Rendering Options
-In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings. 
+In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings, including a dark mode and picking a highlight color.
 You can also apply custom settings for a specific rendering by adding them to your code block in Obsidian. Please refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) for available options. Note that not all options may work and that they interfere with each other. Please note, these won't work (yet), when you're rendering from a code block.
 
 ```
