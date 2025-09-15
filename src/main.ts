@@ -69,6 +69,9 @@ export default class VerovioMusicRenderer extends Plugin {
       if (st) {
         st.options = { ...st.options, ...this.settings };
       }
+      // Apply dark-mode inversion class to wrapper for CSS filtering
+      if (this.settings.darkMode) wrapper.classList.add('dark-invert');
+      else wrapper.classList.remove('dark-invert');
       updateSVG(uid, wrapper);
     });
   }

@@ -176,8 +176,18 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
   const container = document.createElement('div');
   container.className = 'verovio-container';
   container.dataset.uid = uid;
+  // apply highlight color variable
+  const color = (this.settings as any)?.highlightColor || '#DC143C';
+  container.style.setProperty('--verovio-play-color', color);
   const svgWrap = document.createElement('div');
   svgWrap.className = 'verovio-svg-wrapper';
+  // initial dark invert class when created
+  if ((this.settings as any)?.darkMode) {
+    svgWrap.classList.add('dark-invert');
+    container.classList.add('verovio-dark');
+  } else {
+    container.classList.remove('verovio-dark');
+  }
   updateSVG(uid, svgWrap);
   container.appendChild(svgWrap);
 
@@ -196,6 +206,12 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
 
 export function updateSVG(uid: string, wrapper: HTMLElement) {
   const st = instanceStateMap[uid];
+  // ensure container uses current highlight color
+  const container = wrapper.closest('.verovio-container') as HTMLElement | null;
+  if (container) {
+    const color = st.options?.highlightColor || (container.style.getPropertyValue('--verovio-play-color') || '#DC143C');
+    container.style.setProperty('--verovio-play-color', color);
+  }
   window.VerovioToolkit.setOptions(st.options);
   window.VerovioToolkit.loadData(st.meiData);
   if (st.measureRange) {
@@ -206,6 +222,28 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
   wrapper.innerHTML = '';
   wrapper.appendChild(doc.documentElement);
+
+  // Ensure currently-playing notes keep their color under dark-inversion
+  try {
+    const playing = wrapper.querySelectorAll('g.note.playing');
+    playing.forEach(el => el.classList.add('no-invert'));
+  } catch (e) { /* safe */ }
+
+  // Inject playing color from settings if plugin context available on wrapper
+  try {
+    const container = wrapper.closest('.verovio-container') as HTMLElement | null;
+    let color = undefined;
+    if (container) {
+      const plugin = (container as any)._pluginContext as any;
+      color = plugin?.settings?.highlightColor || undefined;
+    }
+    if (!color && (window as any).__verovioDefaultHighlight) color = (window as any).__verovioDefaultHighlight;
+    if (color) {
+      const style = document.createElement('style');
+      style.textContent = `.verovio-container[data-uid="${container?.dataset.uid}"] { --verovio-play-color: ${color}; }`;
+      wrapper.appendChild(style);
+    }
+  } catch (e) { /* ignore */ }
 }
 
 export function changePage(uid: string, delta: number) {
