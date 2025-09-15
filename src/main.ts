@@ -1,5 +1,5 @@
 import { Plugin, WorkspaceLeaf } from 'obsidian';
-import { processVerovioCodeBlocks } from './verovioProcessor';
+import { processVerovioCodeBlocks, updateSVG, instanceStateMap } from './verovioProcessor';
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
 import { loadVerovio } from './verovioLoader';
 import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
@@ -49,5 +49,27 @@ export default class VerovioMusicRenderer extends Plugin {
 
   private async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  // Persist settings and update all rendered SVGs so changes are visible immediately
+  async saveSettings() {
+    await this.saveData(this.settings);
+    this.updateAllSVGs();
+  }
+
+  // Refresh all rendered verovio SVGs in the document
+  private updateAllSVGs() {
+    document.querySelectorAll('.verovio-container').forEach(container => {
+      const uid = container.getAttribute('data-uid');
+      if (!uid) return;
+      const wrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement | null;
+      if (!wrapper) return;
+      // Merge current plugin settings into the instance options so updateSVG uses them
+      const st = instanceStateMap[uid];
+      if (st) {
+        st.options = { ...st.options, ...this.settings };
+      }
+      updateSVG(uid, wrapper);
+    });
   }
 }

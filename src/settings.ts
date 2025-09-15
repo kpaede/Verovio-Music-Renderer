@@ -102,5 +102,6 @@ export class VerovioSettingTab extends PluginSettingTab {
           this.plugin.settings.font = value;
           await this.plugin.saveSettings();
         }));
+
   }
 }

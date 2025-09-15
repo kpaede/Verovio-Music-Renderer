@@ -176,7 +176,6 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
   const container = document.createElement('div');
   container.className = 'verovio-container';
   container.dataset.uid = uid;
-
   const svgWrap = document.createElement('div');
   svgWrap.className = 'verovio-svg-wrapper';
   updateSVG(uid, svgWrap);
