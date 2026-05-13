@@ -8,7 +8,6 @@ export interface VerovioPluginSettings {
   breaks: string;
   pageWidth: number;
   font: string;
-  darkMode?: boolean;
   highlightColor?: string;
 }
 
@@ -19,7 +18,6 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   breaks: 'auto',
   pageWidth: 700,
   font: 'Leland',
-  darkMode: false,
   highlightColor: '#DC143C'
 }
 
@@ -104,16 +102,6 @@ export class VerovioSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.font)
         .onChange(async (value) => {
           this.plugin.settings.font = value;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName('Dark mode')
-      .setDesc('Invert rendering colors for dark backgrounds')
-      .addToggle(toggle => toggle
-        .setValue(!!this.plugin.settings.darkMode)
-        .onChange(async (value) => {
-          this.plugin.settings.darkMode = value;
           await this.plugin.saveSettings();
         }));
 

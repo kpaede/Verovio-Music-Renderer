@@ -8,7 +8,7 @@ export async function loadVerovio() {
       try {
         window.VerovioToolkit = new verovio.toolkit();
         resolve();
-      } catch (error) {
+      } catch (_error) {
         reject(new Error("Verovio toolkit not correctly loaded."));
       }
     };

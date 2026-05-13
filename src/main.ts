@@ -33,10 +33,11 @@ export default class VerovioMusicRenderer extends Plugin {
         const leaf = leaves.length
           ? leaves[0]
           : this.app.workspace.getRightLeaf(false);
-        leaf.setViewState({ type: VIEW_TYPE_MUSIC_EDITOR, active: true });
-        this.app.workspace.revealLeaf(leaf);
+        if (!leaf) return;
+        void leaf.setViewState({ type: VIEW_TYPE_MUSIC_EDITOR, active: true });
+        void this.app.workspace.revealLeaf(leaf);
         if (this.lastClickedUid) {
-          (leaf.view as MusicEditorView).openBlock(this.lastClickedUid);
+          void (leaf.view as MusicEditorView).openBlock(this.lastClickedUid, '');
         }
       },
     });
@@ -48,7 +49,9 @@ export default class VerovioMusicRenderer extends Plugin {
   }
 
   private async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = await this.loadData() as Partial<VerovioPluginSettings> & { darkMode?: boolean } | null;
+    if (data) delete data.darkMode;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
   }
 
   // Persist settings and update all rendered SVGs so changes are visible immediately
@@ -59,19 +62,16 @@ export default class VerovioMusicRenderer extends Plugin {
 
   // Refresh all rendered verovio SVGs in the document
   private updateAllSVGs() {
-    document.querySelectorAll('.verovio-container').forEach(container => {
+    this.app.workspace.containerEl.ownerDocument.querySelectorAll<HTMLElement>('.verovio-container').forEach(container => {
       const uid = container.getAttribute('data-uid');
       if (!uid) return;
-      const wrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement | null;
+      const wrapper = container.querySelector<HTMLElement>('.verovio-svg-wrapper');
       if (!wrapper) return;
       // Merge current plugin settings into the instance options so updateSVG uses them
       const st = instanceStateMap[uid];
       if (st) {
         st.options = { ...st.options, ...this.settings };
       }
-      // Apply dark-mode inversion class to wrapper for CSS filtering
-      if (this.settings.darkMode) wrapper.classList.add('dark-invert');
-      else wrapper.classList.remove('dark-invert');
       updateSVG(uid, wrapper);
     });
   }

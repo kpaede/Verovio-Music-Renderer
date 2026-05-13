@@ -8,7 +8,7 @@ The plugin currently has the following features:
 - Rendering MEI, ABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
 - A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
-- A settings menu to adjust various rendering options (including a dark mode and highlight color).
+- A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
 - Sound playback of the rendered music.
 - Highlighting of live playback notes, synced to the sound playback.
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
@@ -177,6 +177,15 @@ You can also do it manually: Copy the files main.js and manifest.json from the r
 - I disabled logging of the MIDI-file by //ing line 1472 in the midi.js of lz-midi: '//console.log('MidiFile 输入数据', data);''
 
 
+
+## Privacy & Network Activity
+
+This plugin respects your privacy:
+
+- **Network requests are on-demand only**: The plugin only makes network requests when you explicitly provide external URLs (e.g., `https://example.com/file.mei`) in code blocks. No background data transmission, automatic polling, or telemetry occurs.
+- **No tracking or analytics**: The plugin does not collect any usage data, telemetry, or user information.
+- **Local-first by default**: Music files stored in your Obsidian vault are processed locally without any network access.
+- **Transparent external requests**: When you reference an external URL in a code block, the plugin fetches that specific resource on-demand only when you render the code block.
 
 ## Additionally Used (With Many Thanks):
 - [Verovio](https://github.com/rism-digital/verovio) – please support [RISM](https://rism.digital/) and their amazing work

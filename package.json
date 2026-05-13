@@ -1,5 +1,5 @@
 {
-	"name": "Verovio Music Renderer",
+	"name": "verovio-music-renderer",
 	"version": "1.0.9",
 	"description": "Rendering of music notation files.",
 	"main": "main.js",
@@ -15,7 +15,6 @@
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
-		"builtin-modules": "3.3.0",
 		"esbuild": "0.17.3",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
@@ -26,7 +25,7 @@
 		"@codemirror/highlight": "^0.19.8",
 		"@codemirror/lang-xml": "^6.1.0",
 		"@codemirror/language": "^6.11.0",
-		"@codemirror/state": "^6.5.2",
+		"@codemirror/state": "6.5.0",
 		"@codemirror/stream-parser": "^0.19.9",
 		"@codemirror/view": "^6.36.7",
 		"codemirror": "^6.0.1",

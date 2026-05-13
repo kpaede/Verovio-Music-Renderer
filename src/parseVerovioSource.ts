@@ -1,12 +1,14 @@
 // parseVerovioSource.ts
 
 export type VerovioFormat = 'mei' | 'abc' | 'musicxml';
+export type VerovioOptionValue = string | number | boolean;
+export type VerovioOptions = Record<string, VerovioOptionValue>;
 
 export interface ParsedVerovioSource {
   format: VerovioFormat;               // erkannter Notationstyp
   filePath?: string;                   // Pfad im Vault / URL (nur Datei-Modus)
   code?: string;                       // Inline-Notation          (nur Inline-Modus)
-  options: Record<string, any>;        // Verovio-Optionen aus Block
+  options: VerovioOptions;             // Verovio-Optionen aus Block
   measureRange?: string;               // optionale Measure-Range
 }
 
@@ -20,7 +22,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
 
   // 1) Extrahiere zusammenhängende key:val-Zeilen am Ende
   //    (Filtere URLs aus, damit Pfade nicht als Optionen erkannt werden)
-  const options: Record<string, any> = {};
+  const options: VerovioOptions = {};
   let measureRange: string | undefined;
   let end = rawLines.length;
 
@@ -113,7 +115,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   return { format: fileFormat, filePath, options, measureRange };
 }
 
-function parseValue(v: string) {
+function parseValue(v: string): VerovioOptionValue {
   if (v === 'true')  return true;
   if (v === 'false') return false;
   const n = Number(v);

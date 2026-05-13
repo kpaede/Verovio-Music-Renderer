@@ -1,13 +1,19 @@
 // midiController.ts
 import MIDI from 'lz-midi';
-import { instanceStateMap, changePage, updateSVG, NOTE_ON_OFFSET, NOTE_OFF_OFFSET } from './verovioProcessor';
+import { instanceStateMap, changePage, updateSVG, NOTE_ON_OFFSET } from './verovioProcessor';
+
+interface MidiMessage {
+  message: number;
+  note: string;
+}
 
 export function playMIDI(uid: string) {
   const st = instanceStateMap[uid];
-  const container = document.querySelector(
+  const container = document.querySelector<HTMLElement>(
     `.verovio-container[data-uid="${uid}"]`
-  )! as HTMLElement;
-  const svgWrapper = container.querySelector('.verovio-svg-wrapper') as HTMLElement;
+  );
+  const svgWrapper = container?.querySelector<HTMLElement>('.verovio-svg-wrapper');
+  if (!container || !svgWrapper) return;
 
   // Reset und Clear
   changePage(uid, 0);
@@ -26,8 +32,8 @@ export function playMIDI(uid: string) {
   }
 
   const origAdd = MIDI.Player.addListener;
-  MIDI.Player.addListener = (cb: (data: any) => void) =>
-    origAdd.call(MIDI.Player, (data: any) => {
+  MIDI.Player.addListener = (cb: (data: MidiMessage) => void) =>
+    origAdd.call(MIDI.Player, (data: MidiMessage) => {
       if (data.message === 144) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
         noteEl?.classList.add('playing');
@@ -41,10 +47,10 @@ export function playMIDI(uid: string) {
 
   MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
     MIDI.Player.start();
-    MIDI.Player.setAnimation(({ now }) => {
+    MIDI.Player.setAnimation?.(({ now }: { now: number }) => {
       const currentMs = now * 1000 + NOTE_ON_OFFSET;
       const elements = window.VerovioToolkit.getElementsAtTime(currentMs) || {};
-      if (elements.page > 0 && elements.page !== st.currentPage) {
+      if (typeof elements.page === 'number' && elements.page > 0 && elements.page !== st.currentPage) {
         st.currentPage = elements.page;
         updateSVG(uid, svgWrapper);
       }
@@ -53,7 +59,7 @@ export function playMIDI(uid: string) {
       container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
 
       // Sicheres Iterieren über notes
-      const notes: any[] = Array.isArray(elements.notes) ? elements.notes : [];
+      const notes: string[] = Array.isArray(elements.notes) ? elements.notes : [];
       notes.forEach(id => {
         const noteEl = container.querySelector(`g.note#${id}`);
         noteEl?.classList.add('playing');
@@ -67,8 +73,9 @@ export function stopMIDI(uid: string) {
   MIDI.Player.clearListeners?.();
   MIDI.Player.setAnimation?.(() => {});
   // Entferne alle Highlights
-  const container = document.querySelector(
+  const container = document.querySelector<HTMLElement>(
     `.verovio-container[data-uid="${uid}"]`
-  )! as HTMLElement;
+  );
+  if (!container) return;
   container.querySelectorAll('g.note.playing').forEach(el => el.classList.remove('playing'));
 }

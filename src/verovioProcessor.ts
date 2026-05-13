@@ -1,5 +1,6 @@
 import VerovioMusicRenderer from './main';
-import { TFile, Notice, requestUrl, setIcon } from 'obsidian';
+import { MarkdownPostProcessorContext, TFile, Notice, requestUrl, setIcon } from 'obsidian';
+import type { VerovioOptions } from './parseVerovioSource';
 import parseVerovioSource from './parseVerovioSource';
 import { playMIDI, stopMIDI } from './midiController';
 import { downloadSVG } from './svgDownloader';
@@ -9,7 +10,7 @@ import { VIEW_TYPE_MUSIC_EDITOR, MusicEditorView } from './musicEditorView';
 /** State für jede Verovio-Instanz */
 export interface VerovioState {
   meiData: string;
-  options: Record<string, any>;
+  options: VerovioOptions;
   measureRange?: string;
   currentPage: number;
   totalPages: number;
@@ -33,7 +34,6 @@ export const sourceMap: Record<string, string> = {};
 
 /** MIDI-Offsets (für midiController) */
 export const NOTE_ON_OFFSET = 0.0;
-export const NOTE_OFF_OFFSET = 0.01;
 
 /** Zeilen-Offset beim Springen */
 const LINE_JUMP_OFFSET = 2;
@@ -63,7 +63,7 @@ export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
   source: string,
   el: HTMLElement,
-  ctx: any
+  ctx: MarkdownPostProcessorContext
 ) {
   if (!window.VerovioToolkit) {
     el.createEl('p', { text: 'Verovio toolkit not loaded.' });
@@ -72,7 +72,7 @@ export async function processVerovioCodeBlocks(
 
   try {
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
-    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
+    const uid = `verovio-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     let workingCode = code;
     let elementMap: Record<string, ElementInfo> = {};
@@ -113,7 +113,7 @@ export async function processVerovioCodeBlocks(
     const section = ctx.getSectionInfo?.(el);
     if (section && ctx.sourcePath) {
       const absMap: Record<string, ElementInfo> = {};
-      Object.entries(elementMap).forEach(([id, info]) => {
+      Object.entries(elementMap).forEach(([id, info]: [string, ElementInfo]) => {
         absMap[id] = {
           line: section.lineStart + info.line - 1 + LINE_JUMP_OFFSET,
           index: info.index
@@ -127,79 +127,73 @@ export async function processVerovioCodeBlocks(
       };
     }
 
-    const container = createContainer.call(this, uid);
-    el.appendChild(container);
+    const container = createContainer.call(this, uid, el);
 
     // Editor-Öffnen
     const svgWrapper = container.querySelector('.verovio-svg-wrapper');
-    svgWrapper?.addEventListener('click', (e) => {
+    svgWrapper?.addEventListener('click', (e: Event) => {
       e.stopPropagation();
       this.lastClickedUid = uid;
       const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
-      if (leaves.length) (leaves[0].view as MusicEditorView).openBlock(uid, '');
+      if (leaves.length) void (leaves[0].view as MusicEditorView).openBlock(uid, '');
     });
 
-    setTimeout(() => {
+    activeWindow.setTimeout(() => {
       const svg = container.querySelector('svg');
       if (!svg) return;
       Object.keys(clickMap[uid].elementMap).forEach(id => {
         const node = svg.querySelector(`#${id}`);
         if (node) {
-          node.addEventListener('click', (ev) => {
+          node.addEventListener('click', (ev: Event) => {
             ev.stopPropagation();
             this.lastClickedUid = uid;
             const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
-            if (leaves.length) (leaves[0].view as MusicEditorView).openBlock(uid, id);
+            if (leaves.length) void (leaves[0].view as MusicEditorView).openBlock(uid, id);
           });
         }
       });
     }, 100);
 
     return container;
-  } catch (err: any) {
-    new Notice(`Error rendering Verovio: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    new Notice(`Error rendering Verovio: ${message}`);
   }
 }
 
+/**
+ * Fetch MEI data from a file path (local vault) or external URL.
+ * Network requests are triggered on-demand only when the user explicitly provides an external URL.
+ * No automatic polling, periodic updates, or background data transmission occurs.
+ */
 async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
   if (/^https?:\/\//.test(path)) {
+    // On-demand fetch: Only triggered by explicit user code block rendering with external URL
     const res = await requestUrl({ url: path });
-    if (res.status !== 200) throw new Error(res.statusText);
+    if (res.status !== 200) throw new Error(`Failed to fetch ${path}: HTTP ${res.status}`);
     return res.text;
   }
-  const file = this.app.vault.getAbstractFileByPath(path) as TFile;
-  if (!file) throw new Error(`File not found: ${path}`);
-  return this.app.vault.read(file as TFile);
+  const file = this.app.vault.getAbstractFileByPath(path);
+  if (!(file instanceof TFile)) throw new Error(`File not found: ${path}`);
+  return this.app.vault.read(file);
 }
 
-function createContainer(this: VerovioMusicRenderer, uid: string) {
-  const container = document.createElement('div');
-  container.className = 'verovio-container';
+function createContainer(this: VerovioMusicRenderer, uid: string, parentEl: HTMLElement) {
+  const container = parentEl.createDiv('verovio-container');
   container.dataset.uid = uid;
   // apply highlight color variable
-  const color = (this.settings as any)?.highlightColor || '#DC143C';
+  const color = this.settings.highlightColor || '#DC143C';
   container.style.setProperty('--verovio-play-color', color);
-  const svgWrap = document.createElement('div');
-  svgWrap.className = 'verovio-svg-wrapper';
-  // initial dark invert class when created
-  if ((this.settings as any)?.darkMode) {
-    svgWrap.classList.add('dark-invert');
-    container.classList.add('verovio-dark');
-  } else {
-    container.classList.remove('verovio-dark');
-  }
+  const svgWrap = container.createDiv('verovio-svg-wrapper');
   updateSVG(uid, svgWrap);
-  container.appendChild(svgWrap);
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'verovio-toolbar';
+  const toolbar = container.createDiv('verovio-toolbar');
   toolbar.appendChild(createBtn('chevron-left', () => changePage(uid, -1)));
   toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, 1)));
   toolbar.appendChild(createBtn('play', () => playMIDI(uid)));
   toolbar.appendChild(createBtn('square', () => stopMIDI(uid)));
   toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
   toolbar.appendChild(createBtn('external-link', () => openFileExternally.call(this, uid)));
-  container.appendChild(toolbar);
 
   return container;
 }
@@ -207,9 +201,11 @@ function createContainer(this: VerovioMusicRenderer, uid: string) {
 export function updateSVG(uid: string, wrapper: HTMLElement) {
   const st = instanceStateMap[uid];
   // ensure container uses current highlight color
-  const container = wrapper.closest('.verovio-container') as HTMLElement | null;
+  const container = wrapper.closest<HTMLElement>('.verovio-container');
   if (container) {
-    const color = st.options?.highlightColor || (container.style.getPropertyValue('--verovio-play-color') || '#DC143C');
+    const color = typeof st.options.highlightColor === 'string'
+      ? st.options.highlightColor
+      : (container.style.getPropertyValue('--verovio-play-color') || '#DC143C');
     container.style.setProperty('--verovio-play-color', color);
   }
   window.VerovioToolkit.setOptions(st.options);
@@ -227,34 +223,34 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   try {
     const playing = wrapper.querySelectorAll('g.note.playing');
     playing.forEach(el => el.classList.add('no-invert'));
-  } catch (e) { /* safe */ }
+  } catch (_e) { /* safe */ }
 
   // Inject playing color from settings if plugin context available on wrapper
   try {
-    const container = wrapper.closest('.verovio-container') as HTMLElement | null;
-    let color = undefined;
+    const container = wrapper.closest<HTMLElement>('.verovio-container');
+    let color: string | undefined = undefined;
     if (container) {
-      const plugin = (container as any)._pluginContext as any;
+      const plugin = (container as HTMLElement & { _pluginContext?: VerovioMusicRenderer })._pluginContext;
       color = plugin?.settings?.highlightColor || undefined;
     }
-    if (!color && (window as any).__verovioDefaultHighlight) color = (window as any).__verovioDefaultHighlight;
-    if (color) {
-      const style = document.createElement('style');
-      style.textContent = `.verovio-container[data-uid="${container?.dataset.uid}"] { --verovio-play-color: ${color}; }`;
-      wrapper.appendChild(style);
+    if (!color && window.__verovioDefaultHighlight) color = window.__verovioDefaultHighlight;
+    if (color && container) {
+      // Set CSS variable directly on container element (inline style) instead of creating a style element
+      container.style.setProperty('--verovio-play-color', color);
     }
-  } catch (e) { /* ignore */ }
+  } catch (_e) { /* ignore */ }
 }
 
 export function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
-  const wrap = document.querySelector(`.verovio-container[data-uid=\"${uid}\"] .verovio-svg-wrapper`) as HTMLElement;
+  const wrap = document.querySelector<HTMLElement>(`.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`);
+  if (!wrap) return;
   updateSVG(uid, wrap);
 }
 
 function createBtn(icon: string, cb: () => void) {
-  const btn = document.createElement('button');
+  const btn = createEl('button');
   setIcon(btn, icon);
   btn.addEventListener('click', e => { e.preventDefault(); cb(); });
   return btn;

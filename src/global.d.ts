@@ -1,21 +1,35 @@
 declare interface VerovioToolkit {
-  setOptions(options: Record<string, any>): void;
+  setOptions(options: VerovioOptions): void;
   loadData(data: string): void;
   redoLayout(): void;
-  select(opts: Record<string, any>): void;
+  select(opts: VerovioOptions): void;
   renderToSVG(page?: number): string;
   renderToMIDI(): string | null;
-  renderToTimemap(opts?: any): any;
+  renderToTimemap(opts?: VerovioOptions): VerovioTimemap;
   getMEI(): string;
   getPageCount(): number;
-  getElementsAtTime(ms: number): any;
-  renderData(data: string, options?: any): string;
+  getElementsAtTime(ms: number): VerovioElementsAtTime;
+  renderData(data: string, options?: VerovioOptions): string;
 }
 
 declare global {
   interface Window {
     VerovioToolkit: VerovioToolkit;
+    __verovioDefaultHighlight?: string;
   }
+}
+
+type VerovioOptionValue = string | number | boolean | null | undefined;
+type VerovioOptions = Record<string, VerovioOptionValue>;
+
+interface VerovioTimemap {
+  [key: string]: unknown;
+}
+
+interface VerovioElementsAtTime {
+  page?: number;
+  notes?: string[];
+  [key: string]: unknown;
 }
 
 export {};

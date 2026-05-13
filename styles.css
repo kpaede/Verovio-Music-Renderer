@@ -41,35 +41,41 @@
 :root { --verovio-play-color: #DC143C; }
 .playing { fill: var(--verovio-play-color); }
 
-/* Dark-mode: invert score colors via CSS filter on wrapper */
-.verovio-svg-wrapper.dark-invert {
+/* Dark-mode: follow Obsidian's active theme automatically */
+.theme-dark .verovio-svg-wrapper {
   filter: invert(1) hue-rotate(180deg) saturate(0.9);
 }
 
 /* Elements that should keep original color (apply .no-invert to them after render) */
-.verovio-svg-wrapper.dark-invert .no-invert {
+.theme-dark .verovio-svg-wrapper .no-invert {
   filter: invert(1);
 }
 
 /* Toolbar dark style */
-.verovio-container.verovio-dark .verovio-toolbar {
+.theme-dark .verovio-container:hover .verovio-toolbar {
   display: flex;
   gap: 5px;
   background: rgba(20, 20, 20, 0.95);
   border: 1px solid rgba(255,255,255,0.06);
 }
 
-.verovio-container.verovio-dark .verovio-toolbar button svg {
+.theme-dark .verovio-container .verovio-toolbar button svg {
   filter: none !important;
   width: 24px;
   height: 24px;
 }
 
 /* Keep icons black in dark toolbar for visibility */
-.verovio-container.verovio-dark .verovio-toolbar button svg path,
-.verovio-container.verovio-dark .verovio-toolbar button svg line,
-.verovio-container.verovio-dark .verovio-toolbar button svg circle,
-.verovio-container.verovio-dark .verovio-toolbar button svg rect {
+.theme-dark .verovio-container .verovio-toolbar button svg path,
+.theme-dark .verovio-container .verovio-toolbar button svg line,
+.theme-dark .verovio-container .verovio-toolbar button svg circle,
+.theme-dark .verovio-container .verovio-toolbar button svg rect {
   stroke: #ffffff !important;
   opacity: 1 !important;
+}
+
+.verovio-music-editor-content {
+  padding: 0;
+  margin: 0;
+  height: 100%;
 }

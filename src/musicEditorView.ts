@@ -20,11 +20,11 @@ export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 interface ElementInfo { line: number; index: number; }
 
 /** Debounce-Helfer: führt fn frühestens wait ms nach letztem Aufruf aus */
-function debounce<F extends (...args: any[]) => void>(fn: F, wait: number): F {
+function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): F {
   let timer: number;
-  return ((...args: any[]) => {
-    clearTimeout(timer);
-    timer = window.setTimeout(() => fn(...args), wait);
+  return ((...args: Parameters<F>) => {
+    activeWindow.clearTimeout(timer);
+    timer = activeWindow.setTimeout(() => fn(...args), wait);
   }) as F;
 }
 
@@ -79,8 +79,8 @@ export class MusicEditorView extends ItemView {
     }
 
     const { filePath, startLine, endLine, elementMap } = mapping;
-    const file = this.app.vault.getAbstractFileByPath(filePath) as TFile;
-    if (!file) {
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof TFile)) {
       new Notice(`File not found.: ${filePath}`);
       return;
     }
@@ -101,9 +101,7 @@ export class MusicEditorView extends ItemView {
   /** Editor einrichten und debounced bei jeder Änderung speichern */
   private showEditor(blockText: string, elementId: string) {
     this.contentEl.empty();
-    this.contentEl.style.padding = '0';
-    this.contentEl.style.margin  = '0';
-    this.contentEl.style.height  = '100%';
+    this.contentEl.classList.add('verovio-music-editor-content');
 
     // Debounced-Save: tauscht nur den Block-Bereich aus
     const save = debounce(async () => {
@@ -123,7 +121,7 @@ export class MusicEditorView extends ItemView {
 
     // Change-Listener nur bei echten doc-Änderungen
     const changeExt = CMEditorView.updateListener.of((v: ViewUpdate) => {
-      if (v.docChanged) save();
+      if (v.docChanged) void save();
     });
 
     // State mit allen Extensions
