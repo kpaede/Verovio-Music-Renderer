@@ -206,3 +206,6 @@ A: Try changing the breaks type in the plugin options.
 
 Q: I don't hear anything, and playback isn't starting.
 A: Make sure you're connected to the internet to load the SoundFont for playback. It won't work offline, and note highlighting won't either. Check the Obsidian dev tools when in doubt.
+
+Q: I don't hear anything on iOS.
+A: Make sure Silence Mode is not turned on; otherwise you won't hear anything, even with full volume.
