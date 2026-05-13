@@ -191,7 +191,7 @@ This plugin respects your privacy:
 - [Verovio](https://github.com/rism-digital/verovio) – please support [RISM](https://rism.digital/) and their amazing work
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
-I have just rudimentary programming skills and use mostly ChatGPT.
+I have just rudimentary programming skills, so this plugin is mostly vibe coded.
 
 ## FAQ
 

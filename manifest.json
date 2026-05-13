@@ -5,7 +5,7 @@
 	"minAppVersion": "1.7.2",
 	"description": "Rendering, playback and export of MEI, MusicXML, ABC and PAE music notation files and embeds.",
 	"author": "Kornelius Paede",
-	"authorUrl": "https://dramaturgie.lol",
+	"authorUrl": "https://dramaturgie.lol/",
 	"privacyStatement": "This plugin processes all music files locally. Network requests only occur on-demand when you explicitly provide external URLs in code blocks. No telemetry, analytics, or background data transmission.",
 	"isDesktopOnly": false
 }
