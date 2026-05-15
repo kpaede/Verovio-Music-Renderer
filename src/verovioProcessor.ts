@@ -138,7 +138,7 @@ export async function processVerovioCodeBlocks(
       if (leaves.length) void (leaves[0].view as MusicEditorView).openBlock(uid, '');
     });
 
-    activeWindow.setTimeout(() => {
+    window.setTimeout(() => {
       const svg = container.querySelector('svg');
       if (!svg) return;
       Object.keys(clickMap[uid].elementMap).forEach(id => {
@@ -223,7 +223,7 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   try {
     const playing = wrapper.querySelectorAll('g.note.playing');
     playing.forEach(el => el.classList.add('no-invert'));
-  } catch (_e) { /* safe */ }
+  } catch { /* safe */ }
 
   // Inject playing color from settings if plugin context available on wrapper
   try {
@@ -238,13 +238,13 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
       // Set CSS variable directly on container element (inline style) instead of creating a style element
       container.style.setProperty('--verovio-play-color', color);
     }
-  } catch (_e) { /* ignore */ }
+  } catch { /* ignore */ }
 }
 
 export function changePage(uid: string, delta: number) {
   const st = instanceStateMap[uid];
   st.currentPage = Math.min(Math.max(1, st.currentPage + delta), st.totalPages);
-  const wrap = document.querySelector<HTMLElement>(`.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`);
+  const wrap = activeDocument.querySelector<HTMLElement>(`.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`);
   if (!wrap) return;
   updateSVG(uid, wrap);
 }

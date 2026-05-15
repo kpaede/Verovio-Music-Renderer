@@ -23,8 +23,8 @@ interface ElementInfo { line: number; index: number; }
 function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): F {
   let timer: number;
   return ((...args: Parameters<F>) => {
-    activeWindow.clearTimeout(timer);
-    timer = activeWindow.setTimeout(() => fn(...args), wait);
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => fn(...args), wait);
   }) as F;
 }
 

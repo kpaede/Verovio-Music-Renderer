@@ -9,7 +9,7 @@ interface MidiMessage {
 
 export function playMIDI(uid: string) {
   const st = instanceStateMap[uid];
-  const container = document.querySelector<HTMLElement>(
+  const container = activeDocument.querySelector<HTMLElement>(
     `.verovio-container[data-uid="${uid}"]`
   );
   const svgWrapper = container?.querySelector<HTMLElement>('.verovio-svg-wrapper');
@@ -31,9 +31,9 @@ export function playMIDI(uid: string) {
     window.VerovioToolkit.renderToTimemap({});
   }
 
-  const origAdd = MIDI.Player.addListener;
+  const origAdd = MIDI.Player.addListener.bind(MIDI.Player);
   MIDI.Player.addListener = (cb: (data: MidiMessage) => void) =>
-    origAdd.call(MIDI.Player, (data: MidiMessage) => {
+    origAdd((data: MidiMessage) => {
       if (data.message === 144) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
         noteEl?.classList.add('playing');
@@ -73,7 +73,7 @@ export function stopMIDI(uid: string) {
   MIDI.Player.clearListeners?.();
   MIDI.Player.setAnimation?.(() => {});
   // Entferne alle Highlights
-  const container = document.querySelector<HTMLElement>(
+  const container = activeDocument.querySelector<HTMLElement>(
     `.verovio-container[data-uid="${uid}"]`
   );
   if (!container) return;

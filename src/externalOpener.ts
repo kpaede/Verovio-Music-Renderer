@@ -26,7 +26,7 @@ export async function openFileExternally(this: VerovioMusicRenderer, uniqueId: s
 
   if (Platform.isDesktop) {
     try {
-      const { shell } = require('electron') as ElectronModule;
+      const { shell } = await import('electron') as ElectronModule;
       await shell.openPath(absoluteFilePath);  // Open the file with the default application
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

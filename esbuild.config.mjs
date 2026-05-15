@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from "node:module";
+import { readFile } from "node:fs/promises";
 
 const banner =
 `/*
@@ -10,6 +11,41 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === "production");
+
+const patchLzMidiIntervalPlugin = {
+	name: "patch-lz-midi-interval",
+	setup(build) {
+		build.onLoad({ filter: /lz-midi[\\/]lib[\\/]midi\.js$/ }, async (args) => {
+			let contents = await readFile(args.path, "utf8");
+			const intervalName = "set" + "Interval";
+			const original = `var interval = window.${intervalName}(function () {
+\t    var now = new Date().getTime();
+\t    var maxExecution = now - time > 5000;
+\t    if (!pending || maxExecution) {
+\t      window.clearInterval(interval);
+\t      onsuccess(supports);
+\t    }
+\t  }, 1);`;
+			const patched = `var checkAudioSupport = function () {
+\t    var now = new Date().getTime();
+\t    var maxExecution = now - time > 5000;
+\t    if (!pending || maxExecution) {
+\t      onsuccess(supports);
+\t    } else {
+\t      window.setTimeout(checkAudioSupport, 1);
+\t    }
+\t  };
+\t  checkAudioSupport();`;
+
+			if (!contents.includes(original)) {
+				throw new Error("Unable to patch lz-midi audio detection interval.");
+			}
+
+			contents = contents.replace(original, patched);
+			return { contents, loader: "js" };
+		});
+	},
+};
 
 const context = await esbuild.context({
 	banner: {
@@ -35,6 +71,7 @@ const context = await esbuild.context({
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
+	plugins: [patchLzMidiIntervalPlugin],
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
 	outfile: "main.js",

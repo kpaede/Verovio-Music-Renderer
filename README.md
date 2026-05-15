@@ -183,9 +183,10 @@ You can also do it manually: Copy the files main.js and manifest.json from the r
 This plugin respects your privacy:
 
 - **Network requests are on-demand only**: The plugin only makes network requests when you explicitly provide external URLs (e.g., `https://example.com/file.mei`) in code blocks. No background data transmission, automatic polling, or telemetry occurs.
+- **Playback downloads SoundFonts on demand**: When you press the playback button, `lz-midi` may download instrument SoundFont files from `https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/` so the rendered score can be played. This is triggered by the user's playback action and is not telemetry.
 - **No tracking or analytics**: The plugin does not collect any usage data, telemetry, or user information.
 - **Local-first by default**: Music files stored in your Obsidian vault are processed locally without any network access.
-- **Transparent external requests**: When you reference an external URL in a code block, the plugin fetches that specific resource on-demand only when you render the code block.
+- **Transparent external requests**: When you reference an external URL in a code block, the plugin fetches that specific resource on-demand only when you render the code block. When you use playback, the plugin may fetch only the SoundFont assets needed for audio output.
 
 ## Additionally Used (With Many Thanks):
 - [Verovio](https://github.com/rism-digital/verovio) – please support [RISM](https://rism.digital/) and their amazing work

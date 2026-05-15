@@ -1,6 +1,6 @@
 // svgDownloader.ts
 export function downloadSVG(uid: string) {
-  const container = document.querySelector<HTMLElement>(`.verovio-container[data-uid="${uid}"]`);
+  const container = activeDocument.querySelector<HTMLElement>(`.verovio-container[data-uid="${uid}"]`);
   if (!container) return;
   const doc = container.ownerDocument;
   const svgEl = container.querySelector('svg');
