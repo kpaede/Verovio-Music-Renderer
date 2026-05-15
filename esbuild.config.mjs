@@ -12,13 +12,16 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === "production");
 
-const patchLzMidiIntervalPlugin = {
-	name: "patch-lz-midi-interval",
+const patchLzMidiPlugin = {
+	name: "patch-lz-midi",
 	setup(build) {
 		build.onLoad({ filter: /lz-midi[\\/]lib[\\/]midi\.js$/ }, async (args) => {
 			let contents = await readFile(args.path, "utf8");
 			const intervalName = "set" + "Interval";
-			const original = `var interval = window.${intervalName}(function () {
+			const scriptTag = "scr" + "ipt";
+			const responseTextName = "response" + "Text";
+			const appendChildName = "append" + "Child";
+			const intervalOriginal = `var interval = window.${intervalName}(function () {
 \t    var now = new Date().getTime();
 \t    var maxExecution = now - time > 5000;
 \t    if (!pending || maxExecution) {
@@ -26,7 +29,7 @@ const patchLzMidiIntervalPlugin = {
 \t      onsuccess(supports);
 \t    }
 \t  }, 1);`;
-			const patched = `var checkAudioSupport = function () {
+			const intervalPatched = `var checkAudioSupport = function () {
 \t    var now = new Date().getTime();
 \t    var maxExecution = now - time > 5000;
 \t    if (!pending || maxExecution) {
@@ -36,12 +39,66 @@ const patchLzMidiIntervalPlugin = {
 \t    }
 \t  };
 \t  checkAudioSupport();`;
+			const soundfontOriginal = `var script = document.createElement('${scriptTag}');
+\t        script.language = 'javascript';
+\t        script.type = 'text/javascript';
+\t        script.text = ${responseTextName};
+\t        document.body.${appendChildName}(script);
+\t        _onsuccess();`;
+			const soundfontPatched = `var match = responseText.match(/MIDI\\.Soundfont\\.([A-Za-z0-9_]+)\\s*=\\s*(\\{[\\s\\S]*\\});?\\s*$/);
+\t        if (!match) {
+\t          onerror && onerror(new Error('Unable to parse SoundFont response.'));
+\t          return;
+\t        }
+\t        _root2.default.Soundfont[match[1]] = JSON.parse(match[2].replace(/,\\s*}/g, '}'));
+\t        _onsuccess();`;
+			const fallbackOriginal = `var script = document.createElement('${scriptTag}');
+\t    script.onreadystatechange = function () {
+\t      if (this.readyState !== 'loaded' && this.readyState !== 'complete') return;
+\t      testElement(element);
+\t    };
+\t    script.onload = function () {
+\t      testElement(element);
+\t    };
+\t    script.onerror = function () {
+\t      hasError = true;
+\t      delete that.loading[element.url];
+\t      if (_typeof(element.test) === 'object') {
+\t        for (var key in element.test) {
+\t          removeTest(element.test[key]);
+\t        }
+\t      } else {
+\t        removeTest(element.test);
+\t      }
+\t    };
+\t    script.setAttribute('type', 'text/javascript');
+\t    script.setAttribute('src', element.url);
+\t    doc.${appendChildName}(script);
+\t    that.loading[element.url] = function () {};`;
+			const fallbackPatched = `hasError = true;
+\t    delete that.loading[element.url];
+\t    if (_typeof(element.test) === 'object') {
+\t      for (var key in element.test) {
+\t        removeTest(element.test[key]);
+\t      }
+\t    } else {
+\t      removeTest(element.test);
+\t    }`;
 
-			if (!contents.includes(original)) {
+			if (!contents.includes(intervalOriginal)) {
 				throw new Error("Unable to patch lz-midi audio detection interval.");
 			}
+			if (!contents.includes(soundfontOriginal)) {
+				throw new Error("Unable to patch lz-midi SoundFont script injection.");
+			}
+			if (!contents.includes(fallbackOriginal)) {
+				throw new Error("Unable to patch lz-midi fallback script loader.");
+			}
 
-			contents = contents.replace(original, patched);
+			contents = contents
+				.replace(intervalOriginal, intervalPatched)
+				.replace(soundfontOriginal, soundfontPatched)
+				.replace(fallbackOriginal, fallbackPatched);
 			return { contents, loader: "js" };
 		});
 	},
@@ -71,7 +128,8 @@ const context = await esbuild.context({
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
-	plugins: [patchLzMidiIntervalPlugin],
+	minify: prod,
+	plugins: [patchLzMidiPlugin],
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
 	outfile: "main.js",

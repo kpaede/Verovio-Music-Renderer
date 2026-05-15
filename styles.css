@@ -16,7 +16,7 @@
     right: 10px;
     display: none;
     background: rgba(255, 255, 255, 0.8);
-    border: 1px solid #ccc;
+    border: 1px solid #cccccc;
     padding: 5px;
     border-radius: 3px;
     z-index: 10;
@@ -59,8 +59,10 @@
   border: 1px solid rgba(255,255,255,0.06);
 }
 
-.theme-dark .verovio-container .verovio-toolbar button svg {
-  filter: none !important;
+.theme-dark .verovio-container:hover .verovio-toolbar button svg,
+.theme-dark .verovio-container .verovio-toolbar button:hover svg,
+.theme-dark .verovio-container .verovio-toolbar button:focus-visible svg {
+  filter: none;
   width: 24px;
   height: 24px;
 }
@@ -70,8 +72,8 @@
 .theme-dark .verovio-container .verovio-toolbar button svg line,
 .theme-dark .verovio-container .verovio-toolbar button svg circle,
 .theme-dark .verovio-container .verovio-toolbar button svg rect {
-  stroke: #ffffff !important;
-  opacity: 1 !important;
+  stroke: #ffffff;
+  opacity: 1;
 }
 
 .verovio-music-editor-content {
