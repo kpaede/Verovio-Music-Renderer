@@ -1,7 +1,7 @@
 {
 	"id": "verovio-music-renderer",
 	"name": "Verovio Music Renderer",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"minAppVersion": "1.7.2",
 	"description": "Rendering, playback and export of MEI, MusicXML, ABC and PAE music notation files and embeds.",
 	"author": "Kornelius Paede",
