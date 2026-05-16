@@ -172,7 +172,7 @@ measureRange: 1-20
 This plugin is part of the Obsidian community plugins. You can also install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (just add the URL you're on right now as a beta plugin).
 You can also do it manually: Copy the files main.js and manifest.json from the release (look right) into the plugin folder of your vault like this: VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/.
 
-## If You Are Cloning This Project, Read This:
+## If you are forking this project, read this:
 - Audio playback requires changing the _root2.default.soundfontUrl = in /node_modules/lz-midi/lib/midi.js to the following (or a different) URL like this: _root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';. I am using [Paul Rosens midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts)
 - I disabled logging of the MIDI-file by //ing line 1472 in the midi.js of lz-midi: '//console.log('MidiFile 输入数据', data);''
 
@@ -210,3 +210,7 @@ A: Make sure you're connected to the internet to load the SoundFont for playback
 
 Q: I don't hear anything on iOS.
 A: Make sure Silence Mode is not turned on; otherwise you won't hear anything, even with full volume.
+
+## Disclaimer
+
+I vibecode my plugins—and the scope of this work exceeds my programming skills. Because of this, there is always a residual risk when using them. I do this primarily to bridge certain gaps in my own workflow. Should these plugins ever become obsolete because a professional developer used them as inspiration to code something truly solid and sophisticated, I would be absolutely thrilled.
