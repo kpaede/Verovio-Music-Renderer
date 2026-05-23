@@ -1,7 +1,7 @@
 import VerovioMusicRenderer from './main';
 import { MarkdownPostProcessorContext, TFile, Notice, requestUrl, setIcon } from 'obsidian';
 import type { VerovioOptions } from './parseVerovioSource';
-import parseVerovioSource from './parseVerovioSource';
+import parseVerovioSource, { VerovioFormat } from './parseVerovioSource';
 import { playMIDI, stopMIDI } from './midiController';
 import { downloadSVG } from './svgDownloader';
 import { openFileExternally } from './externalOpener';
@@ -11,6 +11,7 @@ import { VIEW_TYPE_MUSIC_EDITOR, MusicEditorView } from './musicEditorView';
 export interface VerovioState {
   meiData: string;
   options: VerovioOptions;
+  highlightColor?: string;
   measureRange?: string;
   currentPage: number;
   totalPages: number;
@@ -37,6 +38,30 @@ export const NOTE_ON_OFFSET = 0.0;
 
 /** Zeilen-Offset beim Springen */
 const LINE_JUMP_OFFSET = 2;
+const PLUGIN_ONLY_OPTION_KEYS = new Set(['highlightColor', 'darkColor', 'darkMode', 'darkModeStyle']);
+
+export function sanitizeVerovioOptions(options: VerovioOptions): VerovioOptions {
+  return Object.fromEntries(
+    Object.entries(options).filter(([key, value]) => !PLUGIN_ONLY_OPTION_KEYS.has(key) && value !== undefined && value !== null)
+  );
+}
+
+function getHighlightColor(options: VerovioOptions): string {
+  return typeof options.highlightColor === 'string' ? options.highlightColor : '#DC143C';
+}
+
+function getInputFrom(format: VerovioFormat): string {
+  return format === 'pae' ? 'pae' : format;
+}
+
+function convertInlineCodeToMEI(code: string, format: VerovioFormat): string {
+  if (format === 'mei') return code;
+  const options = { inputFrom: getInputFrom(format) };
+  window.VerovioToolkit.renderData(code, options);
+  const mei = window.VerovioToolkit.getMEI();
+  if (!mei.trim()) throw new Error(`Failed to convert ${format} input to MEI.`);
+  return mei;
+}
 
 /**
  * Parst MEI, injiziert xml:id nur für <note>-Tags und baut elementMap (relativ zur MEI-String-Zeile)
@@ -84,10 +109,13 @@ export async function processVerovioCodeBlocks(
     }
 
     let rawMEI: string;
+    let loadInputFrom = 'mei';
     if (workingCode) {
-      rawMEI = format === 'mei' ? workingCode : window.VerovioToolkit.renderData(workingCode, {});
+      rawMEI = convertInlineCodeToMEI(workingCode, format);
+      loadInputFrom = 'mei';
     } else if (filePath) {
       rawMEI = await fetchMEIData.call(this, filePath);
+      loadInputFrom = getInputFrom(format);
       // Fix: Mapping UID statt Source
       sourceMap[uid] = filePath;
     } else {
@@ -95,7 +123,8 @@ export async function processVerovioCodeBlocks(
     }
 
     const merged = { ...this.settings, ...options };
-    window.VerovioToolkit.setOptions(merged);
+    const verovioOptions = sanitizeVerovioOptions(merged);
+    window.VerovioToolkit.setOptions({ ...verovioOptions, inputFrom: loadInputFrom });
     window.VerovioToolkit.loadData(rawMEI);
     if (measureRange && /^\d+$/.test(measureRange)) {
       window.VerovioToolkit.select({ measureRange: `${measureRange}-${measureRange}` });
@@ -104,7 +133,8 @@ export async function processVerovioCodeBlocks(
 
     instanceStateMap[uid] = {
       meiData: window.VerovioToolkit.getMEI(),
-      options: merged,
+      options: { ...verovioOptions, inputFrom: 'mei' },
+      highlightColor: getHighlightColor(merged),
       measureRange,
       currentPage: 1,
       totalPages: window.VerovioToolkit.getPageCount(),
@@ -141,7 +171,7 @@ export async function processVerovioCodeBlocks(
     window.setTimeout(() => {
       const svg = container.querySelector('svg');
       if (!svg) return;
-      Object.keys(clickMap[uid].elementMap).forEach(id => {
+      Object.keys(clickMap[uid]?.elementMap ?? {}).forEach(id => {
         const node = svg.querySelector(`#${id}`);
         if (node) {
           node.addEventListener('click', (ev: Event) => {
@@ -182,7 +212,7 @@ function createContainer(this: VerovioMusicRenderer, uid: string, parentEl: HTML
   const container = parentEl.createDiv('verovio-container');
   container.dataset.uid = uid;
   // apply highlight color variable
-  const color = this.settings.highlightColor || '#DC143C';
+  const color = instanceStateMap[uid]?.highlightColor || this.settings.highlightColor || '#DC143C';
   container.style.setProperty('--verovio-play-color', color);
   const svgWrap = container.createDiv('verovio-svg-wrapper');
   updateSVG(uid, svgWrap);
@@ -203,12 +233,10 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   // ensure container uses current highlight color
   const container = wrapper.closest<HTMLElement>('.verovio-container');
   if (container) {
-    const color = typeof st.options.highlightColor === 'string'
-      ? st.options.highlightColor
-      : (container.style.getPropertyValue('--verovio-play-color') || '#DC143C');
+    const color = st.highlightColor || container.style.getPropertyValue('--verovio-play-color') || '#DC143C';
     container.style.setProperty('--verovio-play-color', color);
   }
-  window.VerovioToolkit.setOptions(st.options);
+  window.VerovioToolkit.setOptions({ ...sanitizeVerovioOptions(st.options), inputFrom: 'mei' });
   window.VerovioToolkit.loadData(st.meiData);
   if (st.measureRange) {
     window.VerovioToolkit.select({ measureRange: st.measureRange });

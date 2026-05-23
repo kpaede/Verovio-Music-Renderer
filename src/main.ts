@@ -1,8 +1,9 @@
 import { Plugin, WorkspaceLeaf } from 'obsidian';
-import { processVerovioCodeBlocks, updateSVG, instanceStateMap } from './verovioProcessor';
+import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioOptions } from './verovioProcessor';
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
 import { loadVerovio } from './verovioLoader';
 import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
+import { VerovioModal } from './modal';
 
 export default class VerovioMusicRenderer extends Plugin {
   settings: VerovioPluginSettings;
@@ -41,6 +42,14 @@ export default class VerovioMusicRenderer extends Plugin {
         }
       },
     });
+
+    this.addCommand({
+      id: 'insert-pae-codeblock',
+      name: 'Insert Plaine & Easie music codeblock',
+      editorCallback: (editor) => {
+        new VerovioModal(this.app, (codeBlock) => editor.replaceSelection(codeBlock)).open();
+      },
+    });
   }
 
   private async loadVerovioSafely() {
@@ -49,8 +58,16 @@ export default class VerovioMusicRenderer extends Plugin {
   }
 
   private async loadSettings() {
-    const data = await this.loadData() as Partial<VerovioPluginSettings> & { darkMode?: boolean } | null;
-    if (data) delete data.darkMode;
+    const data = await this.loadData() as Partial<VerovioPluginSettings> & {
+      darkColor?: string;
+      darkMode?: boolean;
+      darkModeStyle?: string;
+    } | null;
+    if (data) {
+      delete data.darkColor;
+      delete data.darkMode;
+      delete data.darkModeStyle;
+    }
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
   }
 
@@ -70,7 +87,8 @@ export default class VerovioMusicRenderer extends Plugin {
       // Merge current plugin settings into the instance options so updateSVG uses them
       const st = instanceStateMap[uid];
       if (st) {
-        st.options = { ...st.options, ...this.settings };
+        st.options = sanitizeVerovioOptions({ ...st.options, ...this.settings });
+        st.highlightColor = this.settings.highlightColor || st.highlightColor;
       }
       updateSVG(uid, wrapper);
     });

@@ -1,6 +1,6 @@
 // parseVerovioSource.ts
 
-export type VerovioFormat = 'mei' | 'abc' | 'musicxml';
+export type VerovioFormat = 'mei' | 'abc' | 'musicxml' | 'pae';
 export type VerovioOptionValue = string | number | boolean;
 export type VerovioOptions = Record<string, VerovioOptionValue>;
 
@@ -87,7 +87,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   // 3) Plaine and Easie inline detection (beginnend mit @)
   if (nonEmpty[0]?.startsWith('@')) {
     return {
-      format: 'abc',
+      format: 'pae',
       code: codeLines.join('\n').trim(),
       options,
       measureRange

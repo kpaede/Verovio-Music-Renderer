@@ -1,6 +1,6 @@
 # Verovio Music Renderer for Obsidian
 
-![](demo.gif)
+![](screenshots/demo.gif)
 
 This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC,  MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
@@ -133,10 +133,16 @@ COPY FROM HERE
 @data:2''C'B/=/''CC/=/2-4DE/2-8{'B''C+C'B}/2''C-//
 ```COPY UNTIL HERE
 ```
+
+## Plaine & Easie Editor
+You can open a Plaine & Easie editor from the Obsidian Command Palette with the command "Insert Plaine & Easie music codeblock". It provides a notation-oriented input modal with note values, rests, clefs, key signatures, a small piano keyboard, live Verovio preview, and inserts the result as a compact PAE code block.
+
+![](screenshots/PAE_editor.png)
+
 ## Side Panel
 You can open a side panel via the Obsidian Command Palette to edit your musical code directly, complete with XML and MEI syntax highlighting. Clicking on a rendered note will jump you to the corresponding line of code—but this only works for MEI inside a code block, not for externally linked files.
 
-![](sidepanel.png)
+![](screenshots/sidepanel.png)
 
 ## Rendering Options
 In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings, including a dark mode and picking a highlight color.

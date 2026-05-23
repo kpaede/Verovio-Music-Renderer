@@ -81,3 +81,212 @@
   margin: 0;
   height: 100%;
 }
+
+.verovio-pae-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 760px;
+}
+
+.verovio-pae-modal h2 {
+  margin: 0 0 4px;
+}
+
+.verovio-pae-toolbar,
+.verovio-pae-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.verovio-pae-button-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.verovio-pae-toolbar button {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 7px;
+  font-size: var(--font-ui-smaller);
+}
+
+.verovio-pae-duration-button {
+  line-height: 1;
+}
+
+.verovio-pae-toolbar button.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.verovio-pae-toolbar button svg {
+  display: block;
+  width: 18px;
+  height: 20px;
+}
+
+.verovio-pae-toolbar button .svg-icon,
+.verovio-pae-toolbar button .svg-icon * {
+  fill: none;
+  stroke: currentColor;
+}
+
+.verovio-pae-toolbar button .verovio-pae-vrv-icon,
+.verovio-pae-toolbar button .verovio-pae-vrv-icon * {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.verovio-pae-rest-button {
+  min-width: 36px;
+}
+
+.verovio-pae-rest-button svg {
+  width: 16px;
+  height: 22px;
+}
+
+.verovio-pae-dot-button,
+.verovio-pae-barline-button {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.verovio-pae-barline-button {
+  font-size: 20px;
+}
+
+.verovio-pae-keyboard-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+
+.verovio-pae-piano {
+  position: relative;
+  width: 525px;
+  height: 155px;
+  margin: 0 auto;
+  background: linear-gradient(#fbfbfb, #e9e9e9);
+  border: 1px solid #9a9a9a;
+  box-shadow: inset 0 -8px 14px rgba(0, 0, 0, 0.12);
+}
+
+.verovio-pae-white-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #a8a8a8;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.verovio-pae-white-key,
+.verovio-pae-black-key {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.verovio-pae-white-key {
+  z-index: 2;
+  border: 0;
+  border-right: 1px solid #b9b9b9;
+  background: transparent;
+  color: #222222;
+}
+
+.verovio-pae-white-key:hover,
+.verovio-pae-white-key:focus-visible {
+  background: rgba(40, 110, 210, 0.12);
+}
+
+.verovio-pae-white-key span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  text-align: center;
+  font-size: 11px;
+}
+
+.verovio-pae-black-key {
+  z-index: 4;
+  border: 1px solid #111111;
+  background: linear-gradient(#3a3a3a, #080808);
+}
+
+.verovio-pae-black-key.is-flat {
+  background: linear-gradient(#161616, #404040);
+}
+
+.verovio-pae-black-key:hover,
+.verovio-pae-black-key:focus-visible {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.verovio-pae-black-key::after {
+  content: "#";
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+}
+
+.verovio-pae-black-key.is-flat::after {
+  content: "b";
+}
+
+.verovio-pae-field {
+  width: 100%;
+  min-height: 32px;
+}
+
+.verovio-pae-input {
+  width: 100%;
+  min-height: 78px;
+  resize: vertical;
+  font-family: var(--font-monospace);
+}
+
+.verovio-pae-warning {
+  display: none;
+  white-space: pre-line;
+  color: var(--text-error);
+  background: var(--background-modifier-error);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.verovio-pae-preview {
+  min-height: 120px;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--background-primary);
+}
+
+.verovio-pae-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.verovio-pae-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 700px) {
+  .verovio-pae-piano {
+    margin: 0;
+  }
+}

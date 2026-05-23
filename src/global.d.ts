@@ -10,6 +10,7 @@ declare interface VerovioToolkit {
   getPageCount(): number;
   getElementsAtTime(ms: number): VerovioElementsAtTime;
   renderData(data: string, options?: VerovioOptions): string;
+  validatePAE?(data: string): VerovioValidation;
 }
 
 declare global {
@@ -30,6 +31,20 @@ interface VerovioElementsAtTime {
   page?: number;
   notes?: string[];
   [key: string]: unknown;
+}
+
+interface VerovioValidationMessage {
+  text?: string;
+  column?: number;
+  [key: string]: unknown;
+}
+
+interface VerovioValidation {
+  clef?: VerovioValidationMessage;
+  keysig?: VerovioValidationMessage;
+  timesig?: VerovioValidationMessage;
+  data?: VerovioValidationMessage[];
+  [key: string]: VerovioValidationMessage | VerovioValidationMessage[] | undefined;
 }
 
 export {};
