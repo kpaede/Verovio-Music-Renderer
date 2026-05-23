@@ -84,6 +84,10 @@ const patchLzMidiPlugin = {
 \t    } else {
 \t      removeTest(element.test);
 \t    }`;
+			const soundfontUrlOriginal = `_root2.default.soundfontUrl = './soundfont/';`;
+			const soundfontUrlPatched = `_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';`;
+			const midiFileLogOriginal = `  console.log('MidiFile 输入数据', data);`;
+			const midiFileLogPatched = `  // console.log('MidiFile 输入数据', data);`;
 
 			if (!contents.includes(intervalOriginal)) {
 				throw new Error("Unable to patch lz-midi audio detection interval.");
@@ -94,8 +98,16 @@ const patchLzMidiPlugin = {
 			if (!contents.includes(fallbackOriginal)) {
 				throw new Error("Unable to patch lz-midi fallback script loader.");
 			}
+			if (!contents.includes(soundfontUrlOriginal) && !contents.includes(soundfontUrlPatched)) {
+				throw new Error("Unable to patch lz-midi SoundFont URL.");
+			}
+			if (!contents.includes(midiFileLogOriginal) && !contents.includes(midiFileLogPatched)) {
+				throw new Error("Unable to patch lz-midi MIDI file logging.");
+			}
 
 			contents = contents
+				.replace(soundfontUrlOriginal, soundfontUrlPatched)
+				.replace(midiFileLogOriginal, midiFileLogPatched)
 				.replace(intervalOriginal, intervalPatched)
 				.replace(soundfontOriginal, soundfontPatched)
 				.replace(fallbackOriginal, fallbackPatched);

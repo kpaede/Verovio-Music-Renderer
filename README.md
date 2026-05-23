@@ -197,8 +197,8 @@ This plugin is part of the Obsidian community plugins. You can also install it v
 You can also do it manually: Copy the files main.js and manifest.json from the release (look right) into the plugin folder of your vault like this: VaultFolder/.obsidian/plugins/Verovio-Music-Renderer/.
 
 ## If you are forking this project, read this:
-- Audio playback requires changing the _root2.default.soundfontUrl = in /node_modules/lz-midi/lib/midi.js to the following (or a different) URL like this: _root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';. I am using [Paul Rosens midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts)
-- I disabled logging of the MIDI-file by //ing line 1472 in the midi.js of lz-midi: '//console.log('MidiFile 输入数据', data);''
+- Audio playback uses [Paul Rosen's midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts). The SoundFont URL is patched automatically during the build in `esbuild.config.mjs`, so you do not need to edit `node_modules/lz-midi/lib/midi.js` by hand.
+- The noisy MIDI-file logging in `lz-midi` is disabled automatically during the build in `esbuild.config.mjs`, so it does not fill the Obsidian developer console.
 
 
 
