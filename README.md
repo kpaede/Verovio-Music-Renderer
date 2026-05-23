@@ -6,6 +6,7 @@ This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https:/
 
 The plugin currently has the following features:
 - Rendering MEI, ABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
+- Converting selected ABC, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
 - A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
@@ -86,40 +87,57 @@ and of course MEI
 ```
 COPY FROM HERE
 ```verovio
-<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="4.0.0">
-  <meiHead>
-    <fileDesc>
-      <titleStmt>
-        <title>Another Test</title>
-      </titleStmt>
-      <pubStmt/>
-    </fileDesc>
-  </meiHead>
-  <music>
-    <body>
-      <mdiv>
-        <score>
-          <scoreDef meter.count="4" meter.unit="4" key.sig="0">
-            <staffGrp>
-              <staffDef n="1" lines="5" clef.shape="G" clef.line="2"/>
-            </staffGrp>
-          </scoreDef>
-          <section>
-            <measure n="1">
-              <staff n="1">
-                <layer n="1">
-                  <note pname="c" oct="4" dur="4"/>
-                  <note pname="d" oct="4" dur="4"/>
-                  <note pname="e" oct="4" dur="4"/>
-                  <note pname="f" oct="4" dur="4"/>
-                </layer>
-              </staff>
-            </measure>
-          </section>
-        </score>
-      </mdiv>
-    </body>
-  </music>
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://music-encoding.org/schema/5.0/mei-all.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="https://music-encoding.org/schema/5.0/mei-all.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.0">
+   <meiHead>
+      <fileDesc>
+         <titleStmt>
+            <title />
+         </titleStmt>
+         <pubStmt>
+            <date isodate="2026-05-23-13:23:13" />
+         </pubStmt>
+      </fileDesc>
+      <encodingDesc>
+         <appInfo>
+            <application xml:id="verovio" version="4.5.1-deb523f">
+               <name>Verovio (4.5.1-deb523f)</name>
+            </application>
+         </appInfo>
+         <projectDesc>
+            <p>MEI encoded with Verovio</p>
+            <p>Converted from Plaine and Easie to MEI</p>
+         </projectDesc>
+      </encodingDesc>
+   </meiHead>
+   <music>
+      <body>
+         <mdiv xml:id="m1fuif7x">
+            <score xml:id="s59t00i">
+               <scoreDef xml:id="sax54by" meter.count="4" meter.unit="4">
+                  <keySig xml:id="kk0w9z9" sig="1s" />
+                  <staffGrp xml:id="sr0v46p">
+                     <staffDef xml:id="s1sv0eza" n="1" lines="5" clef.shape="G" clef.line="2" />
+                  </staffGrp>
+               </scoreDef>
+               <section xml:id="shkhrm9">
+                  <measure xml:id="m119wlyw" right="single">
+                     <staff xml:id="s1w12kwo" n="1">
+                        <layer xml:id="lu2c8co" n="1">
+                           <note xml:id="npm6i1o" dur="4" oct="4" pname="c" />
+                           <note xml:id="n1e4uqs9" dur="4" oct="4" pname="g" />
+                           <note xml:id="n1mfvt3g" dur="4" oct="5" pname="d" />
+                           <note xml:id="n1u9m2av" dur="4" oct="4" pname="e" />
+                        </layer>
+                     </staff>
+                  </measure>
+               </section>
+            </score>
+         </mdiv>
+      </body>
+   </music>
 </mei>
 ```COPY UNTIL HERE
 ```

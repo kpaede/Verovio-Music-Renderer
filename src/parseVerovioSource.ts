@@ -95,14 +95,15 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   }
 
   // 4) Automatische Inline-Erkennung
-  if (nonEmpty[0]?.startsWith('<mei')) {
-    return { format: 'mei', code: codeLines.join('\n').trim(), options, measureRange };
+  const inlineCode = codeLines.join('\n').trim();
+  if (/<mei(?:\s|>)/i.test(inlineCode)) {
+    return { format: 'mei', code: inlineCode, options, measureRange };
   }
-  if (nonEmpty[0]?.startsWith('<?xml') || nonEmpty[0]?.includes('<score-partwise')) {
-    return { format: 'musicxml', code: codeLines.join('\n').trim(), options, measureRange };
+  if (/<score-partwise(?:\s|>)/i.test(inlineCode) || /<score-timewise(?:\s|>)/i.test(inlineCode)) {
+    return { format: 'musicxml', code: inlineCode, options, measureRange };
   }
   if (/^X:\d+/i.test(nonEmpty[0] || '')) {
-    return { format: 'abc', code: codeLines.join('\n').trim(), options, measureRange };
+    return { format: 'abc', code: inlineCode, options, measureRange };
   }
 
   // 5) Datei-Modus (erste Zeile = Pfad)

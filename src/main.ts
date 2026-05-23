@@ -1,9 +1,16 @@
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import { Editor, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
 import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioOptions } from './verovioProcessor';
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
 import { loadVerovio } from './verovioLoader';
 import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
 import { VerovioModal } from './modal';
+import parseVerovioSource, { VerovioFormat } from './parseVerovioSource';
+
+interface FencedSelection {
+  body: string;
+  prefix?: string;
+  suffix?: string;
+}
 
 export default class VerovioMusicRenderer extends Plugin {
   settings: VerovioPluginSettings;
@@ -50,6 +57,12 @@ export default class VerovioMusicRenderer extends Plugin {
         new VerovioModal(this.app, (codeBlock) => editor.replaceSelection(codeBlock)).open();
       },
     });
+
+    this.addCommand({
+      id: 'convert-selection-to-mei',
+      name: 'Convert selected notation to MEI',
+      editorCallback: (editor) => this.convertSelectionToMEI(editor),
+    });
   }
 
   private async loadVerovioSafely() {
@@ -92,5 +105,59 @@ export default class VerovioMusicRenderer extends Plugin {
       }
       updateSVG(uid, wrapper);
     });
+  }
+
+  private convertSelectionToMEI(editor: Editor) {
+    if (!window.VerovioToolkit) {
+      new Notice('Verovio toolkit is not loaded.');
+      return;
+    }
+
+    const selection = editor.getSelection();
+    if (!selection.trim()) {
+      new Notice('Select notation code to convert to MEI.');
+      return;
+    }
+
+    try {
+      const fenced = this.extractFencedSelection(selection);
+      const parsed = parseVerovioSource(fenced.body);
+      if (parsed.filePath) {
+        new Notice('Select the notation content itself, not a file path.');
+        return;
+      }
+      if (!parsed.code?.trim()) {
+        new Notice('No notation content found in the selection.');
+        return;
+      }
+
+      const mei = this.convertNotationToMEI(parsed.code, parsed.format).trim();
+      const replacement = fenced.prefix
+        ? `${fenced.prefix}${mei}\n${fenced.suffix ?? '```'}`
+        : mei;
+      editor.replaceSelection(replacement);
+      new Notice('Selection converted to MEI.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Could not convert selection to MEI: ${message}`);
+    }
+  }
+
+  private extractFencedSelection(selection: string): FencedSelection {
+    const match = selection.match(/^(\s*```[^\n]*\n)([\s\S]*?)(\n```\s*)$/);
+    if (!match) return { body: selection };
+    return {
+      body: match[2],
+      prefix: match[1].replace(/^(\s*)```[^\n]*/, '$1```verovio'),
+      suffix: match[3].trimEnd(),
+    };
+  }
+
+  private convertNotationToMEI(code: string, format: VerovioFormat): string {
+    if (format === 'mei') return code;
+    window.VerovioToolkit.renderData(code, { inputFrom: format });
+    const mei = window.VerovioToolkit.getMEI();
+    if (!mei.trim()) throw new Error(`Verovio did not return MEI for ${format}.`);
+    return mei;
   }
 }
