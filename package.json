@@ -32,6 +32,7 @@
 		"@codemirror/highlight": "^0.19.8",
 		"@codemirror/lang-xml": "^6.1.0",
 		"@codemirror/language": "^6.11.0",
+		"@codemirror/search": "^6.7.0",
 		"@codemirror/state": "6.5.0",
 		"@codemirror/stream-parser": "^0.19.9",
 		"@codemirror/view": "^6.36.7",
