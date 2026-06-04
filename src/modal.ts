@@ -144,7 +144,7 @@ export class VerovioModal extends Modal {
     contentEl.addClass('verovio-pae-modal');
     contentEl.addEventListener('keydown', (event) => this.onShortcut(event));
 
-    contentEl.createEl('h2', { text: 'Plaine & Easie Code Editor' });
+    contentEl.createEl('h2', { text: 'Plaine & Easie code editor' });
 
     this.durationButtonsEl = contentEl.createDiv('verovio-pae-toolbar');
     this.createDurationButtons(this.durationButtonsEl);
@@ -162,7 +162,7 @@ export class VerovioModal extends Modal {
     this.timesigInput = contentEl.createEl('input', {
       type: 'text',
       cls: 'verovio-pae-field',
-      attr: { placeholder: 'Time signature (e.g. c c/ 3/4)' },
+      attr: { placeholder: 'Time signature, e.g. C c/ 3/4' },
     });
     this.timesigInput.addEventListener('input', () => this.updatePreview());
 
@@ -214,7 +214,13 @@ export class VerovioModal extends Modal {
         cls: 'verovio-pae-duration-button',
         attr: { 'aria-label': label },
       });
-      button.innerHTML = this.renderToolbarGlyph(`${value}C/`, 'note') || String(value);
+      const glyph = this.renderToolbarGlyph(`${value}C/`, 'note');
+      if (glyph) {
+        const doc = new DOMParser().parseFromString(glyph, 'image/svg+xml');
+        if (doc.documentElement) button.append(doc.documentElement);
+      } else {
+        button.setText(String(value));
+      }
       button.dataset.duration = String(value);
       button.addEventListener('click', () => this.onDuration(value));
     });
@@ -246,7 +252,7 @@ export class VerovioModal extends Modal {
         xmlIdSeed: 1,
       });
       const doc = new DOMParser().parseFromString(rendered, 'image/svg+xml');
-      const defs = doc.querySelector('defs')?.innerHTML ?? '';
+      const defs = doc.querySelector('defs')?.cloneNode(true);
       const glyph = doc.querySelector<SVGGElement>(`g.${className}`);
       if (!glyph) return '';
       const viewBox = className === 'barLine'
@@ -254,7 +260,18 @@ export class VerovioModal extends Modal {
         : className === 'rest'
           ? '760 160 900 900'
           : '700 360 900 980';
-      return `<svg class="verovio-pae-vrv-icon" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${viewBox}" color="currentColor" fill="currentColor" stroke="currentColor" aria-hidden="true"><defs>${defs}</defs>${glyph.outerHTML}</svg>`;
+      const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'verovio-pae-vrv-icon');
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      svg.setAttribute('viewBox', viewBox);
+      svg.setAttribute('color', 'currentColor');
+      svg.setAttribute('fill', 'currentColor');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('aria-hidden', 'true');
+      if (defs) svg.append(defs);
+      svg.append(glyph.cloneNode(true));
+      return new XMLSerializer().serializeToString(svg);
     } catch (error) {
       console.error('Failed to render Verovio toolbar glyph:', error);
       return '';
@@ -273,7 +290,12 @@ export class VerovioModal extends Modal {
       cls,
       attr: { 'aria-label': label },
     });
-    button.innerHTML = text;
+    if (text.startsWith('<svg')) {
+      const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+      if (doc.documentElement) button.append(doc.documentElement);
+    } else {
+      button.setText(text);
+    }
     button.addEventListener('click', callback);
   }
 
@@ -434,7 +456,13 @@ export class VerovioModal extends Modal {
         spacingStaff: 2,
         xmlIdSeed: 1,
       });
-      this.previewEl.innerHTML = svg;
+      this.previewEl.empty();
+      const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      if (doc.documentElement) {
+        this.previewEl.append(doc.documentElement);
+      } else {
+        this.previewEl.setText(svg);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.previewEl.setText(message);
@@ -442,17 +470,16 @@ export class VerovioModal extends Modal {
   }
 
   private showValidation(pae: string) {
-    const validate = window.VerovioToolkit.validatePAE;
-    if (!validate || this.paeInput.value === '') return;
-    const validation = validate.call(window.VerovioToolkit, pae);
+    if (!window.VerovioToolkit?.validatePAE || this.paeInput.value === '') return;
+    const validation = window.VerovioToolkit.validatePAE(pae) as Record<string, unknown>;
     const messages: string[] = [];
     ['clef', 'keysig', 'timesig'].forEach((key) => {
-      const item = validation[key];
-      if (!Array.isArray(item) && item?.text) messages.push(item.text);
+      const item = validation[key] as { text?: string } | undefined;
+      if (item && !Array.isArray(item) && item.text) messages.push(item.text);
     });
-    const dataMessages = validation.data;
+    const dataMessages = validation.data as { text?: string }[] | undefined;
     if (Array.isArray(dataMessages)) {
-      dataMessages.forEach((item: { text?: string }) => {
+      dataMessages.forEach((item) => {
         if (item.text) messages.push(item.text);
       });
     }

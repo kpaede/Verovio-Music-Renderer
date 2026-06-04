@@ -59,12 +59,12 @@ export class MusicEditorView extends ItemView {
   }
 
   getViewType(): string { return VIEW_TYPE_MUSIC_EDITOR; }
-  getDisplayText(): string { return 'Verovio Code Editor'; }
+  getDisplayText(): string { return 'Verovio code editor'; }
 
   async onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.createEl('p', {
-      text: 'Pleanse open a Verovio-Rendering or re-open the panel.'
+      text: 'Please open a Verovio rendering or re-open the panel.'
     });
   }
 
@@ -115,7 +115,7 @@ export class MusicEditorView extends ItemView {
         this.fileEndLine = this.fileStartLine + updated.length;
       } catch (e) {
         console.error('Save failed.:', e);
-        new Notice('Saving in Code Block Failed.');
+        new Notice('Saving in code block failed.');
       }
     }, 300);
 

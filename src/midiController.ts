@@ -77,8 +77,8 @@ export function playMIDI(uid: string) {
     window.VerovioToolkit.renderToTimemap({});
   }
 
-  const origAdd = MIDI.Player.addListener.bind(MIDI.Player);
-  MIDI.Player.addListener = (cb: (data: MidiMessage) => void) =>
+  const origAdd = MIDI.Player.addListener.bind(MIDI.Player) as (cb: (data: MidiMessage) => void) => void;
+  MIDI.Player.addListener = (cb: (data: MidiMessage) => void) => {
     origAdd((data: MidiMessage) => {
       if (data.message === 144) {
         const noteEl = container.querySelector(`g.note#${data.note}`);
@@ -90,6 +90,7 @@ export function playMIDI(uid: string) {
         noteEl?.classList.remove('playing');
       }
     });
+  };
 
   MIDI.Player.loadFile(`data:audio/midi;base64,${midiData}`, () => {
     MIDI.Player.currentTime = playbackRange.startMs;

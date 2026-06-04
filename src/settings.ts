@@ -81,7 +81,7 @@ export class VerovioSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Page width')
-      .setDesc('Width of the Rendering')
+      .setDesc('Width of the rendering.')
       .addSlider(slider => slider
         .setLimits(100, 8800, 50)
         .setValue(this.plugin.settings.pageWidth)

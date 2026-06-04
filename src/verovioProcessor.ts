@@ -239,7 +239,7 @@ export async function processVerovioCodeBlocks(
       }
       loadInputFrom = 'mei';
     } else if (filePath) {
-      const fileData = await fetchMEIData.call(this, filePath, ctx.sourcePath);
+      const fileData = await fetchMEIData(this, filePath, ctx.sourcePath);
       if (format === 'gabc') {
         const gabc = prepareGabcInput(fileData);
         rawMEI = addGabcMetadataToMEI(
@@ -278,7 +278,7 @@ export async function processVerovioCodeBlocks(
       totalPages: window.VerovioToolkit.getPageCount(),
     };
 
-    const section = ctx.getSectionInfo?.(el);
+    const section: { lineStart: number; lineEnd: number } | null | undefined = ctx.getSectionInfo?.(el);
     if (section && ctx.sourcePath) {
       const absMap: Record<string, ElementInfo> = {};
       Object.entries(elementMap).forEach(([id, info]: [string, ElementInfo]) => {
@@ -295,10 +295,10 @@ export async function processVerovioCodeBlocks(
       };
     }
 
-    const container = createContainer.call(this, uid, el);
+    const container = createContainer(this, uid, el);
 
     // Editor-Öffnen
-    const svgWrapper = container.querySelector('.verovio-svg-wrapper');
+    const svgWrapper = container.querySelector<HTMLElement>('.verovio-svg-wrapper');
     svgWrapper?.addEventListener('click', (e: Event) => {
       e.stopPropagation();
       this.lastClickedUid = uid;
@@ -307,10 +307,10 @@ export async function processVerovioCodeBlocks(
     });
 
     window.setTimeout(() => {
-      const svg = container.querySelector('svg');
+      const svg = container.querySelector<SVGSVGElement>('svg');
       if (!svg) return;
       Object.keys(clickMap[uid]?.elementMap ?? {}).forEach(id => {
-        const node = svg.querySelector(`#${id}`);
+        const node = svg.querySelector<SVGElement>(`#${id}`);
         if (node) {
           node.addEventListener('click', (ev: Event) => {
             ev.stopPropagation();
@@ -334,19 +334,19 @@ export async function processVerovioCodeBlocks(
  * Network requests are triggered on-demand only when the user explicitly provides an external URL.
  * No automatic polling, periodic updates, or background data transmission occurs.
  */
-async function fetchMEIData(this: VerovioMusicRenderer, path: string, sourcePath?: string) {
+async function fetchMEIData(plugin: VerovioMusicRenderer, path: string, sourcePath?: string): Promise<string> {
   if (/^https?:\/\//.test(path)) {
     // On-demand fetch: Only triggered by explicit user code block rendering with external URL
     const res = await requestUrl({ url: path });
     if (res.status !== 200) throw new Error(`Failed to fetch ${path}: HTTP ${res.status}`);
-    return res.text;
+    return String(res.text);
   }
-  const file = resolveVaultFile.call(this, path, sourcePath);
+  const file = resolveVaultFile(plugin, path, sourcePath);
   if (!(file instanceof TFile)) throw new Error(`File not found: ${path}`);
-  return this.app.vault.read(file);
+  return plugin.app.vault.read(file);
 }
 
-function resolveVaultFile(this: VerovioMusicRenderer, path: string, sourcePath?: string): TFile | null {
+function resolveVaultFile(plugin: VerovioMusicRenderer, path: string, sourcePath?: string): TFile | null {
   const cleanPath = stripObsidianLink(path.trim());
   const decodedPath = decodePath(cleanPath);
   const candidates = new Set<string>([cleanPath, decodedPath]);
@@ -363,11 +363,11 @@ function resolveVaultFile(this: VerovioMusicRenderer, path: string, sourcePath?:
   }
 
   for (const candidate of candidates) {
-    const file = this.app.vault.getAbstractFileByPath(normalizePath(candidate));
+    const file = plugin.app.vault.getAbstractFileByPath(normalizePath(candidate));
     if (file instanceof TFile) return file;
   }
 
-  const linked = this.app.metadataCache.getFirstLinkpathDest(decodedPath, sourcePath || '');
+  const linked = plugin.app.metadataCache.getFirstLinkpathDest(decodedPath, sourcePath || '');
   return linked instanceof TFile ? linked : null;
 }
 
@@ -389,11 +389,11 @@ function decodePath(path: string): string {
   }
 }
 
-function createContainer(this: VerovioMusicRenderer, uid: string, parentEl: HTMLElement) {
+function createContainer(plugin: VerovioMusicRenderer, uid: string, parentEl: HTMLElement) {
   const container = parentEl.createDiv('verovio-container');
   container.dataset.uid = uid;
   // apply highlight color variable
-  const color = instanceStateMap[uid]?.highlightColor || this.settings.highlightColor || '#DC143C';
+  const color = instanceStateMap[uid]?.highlightColor || plugin.settings.highlightColor || '#DC143C';
   container.style.setProperty('--verovio-play-color', color);
   const svgWrap = container.createDiv('verovio-svg-wrapper');
   updateSVG(uid, svgWrap);
@@ -403,11 +403,11 @@ function createContainer(this: VerovioMusicRenderer, uid: string, parentEl: HTML
   toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, 1)));
   toolbar.appendChild(createBtn('play', () => playMIDI(uid), {
     disabled: !instanceStateMap[uid]?.supportsPlayback,
-    title: instanceStateMap[uid]?.supportsPlayback ? 'Play' : 'Playback is not supported for GABC/neume notation in Verovio.',
+    title: instanceStateMap[uid]?.supportsPlayback ? 'Play' : 'Playback is not supported for gabc/neume notation in verovio.',
   }));
   toolbar.appendChild(createBtn('square', () => stopMIDI(uid)));
   toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
-  toolbar.appendChild(createBtn('external-link', () => openFileExternally.call(this, uid)));
+  toolbar.appendChild(createBtn('external-link', () => { openFileExternally.call(plugin, uid); }));
 
   return container;
 }

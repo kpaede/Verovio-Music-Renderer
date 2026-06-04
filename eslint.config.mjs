@@ -29,7 +29,12 @@ export default defineConfig([
       "obsidianmd/no-view-references-in-plugin": "off",
       "obsidianmd/prefer-file-manager-trash-file": "off",
       "obsidianmd/prefer-instanceof": "off",
-      "obsidianmd/ui/sentence-case": "warn",
+      "obsidianmd/ui/sentence-case": ["warn", {
+        acronyms: ["ABC", "CMME", "GABC", "MEI", "MIDI", "PAE", "SVG", "XML"],
+        brands: ["Verovio", "Plaine & Easie"],
+        enforceCamelCaseLower: true,
+        ignoreRegex: ["^#[0-9A-Fa-f]{6}$"],
+      }],
     },
   },
   {
