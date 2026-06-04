@@ -2,7 +2,7 @@
 
 ![](screenshots/demo.gif)
 
-This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC, CMME, GABC, Volpiano, MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as , MusicXML, ABC and PAE, CMME, GABC, Volpiano) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
 - Rendering MEI, ABC, CMME, GABC, Volpiano, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
@@ -161,7 +161,7 @@ Beati_omnes.cmme.xml
 ```COPY UNTIL HERE
 ```
 
-Inline CMME XML can be rendered with an explicit format prefix
+Inline CMME XML is recognized automatically. The optional `cmme:` prefix can be used to make the format explicit.
 
 ```
 COPY FROM HERE
