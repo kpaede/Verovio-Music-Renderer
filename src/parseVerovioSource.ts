@@ -55,68 +55,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
 
   const codeLines = rawLines.slice(0, end);
   const nonEmpty = codeLines.map(l => l.trim()).filter(Boolean);
-  const first = nonEmpty[0] || '';
-  const firstLower = first.toLowerCase();
-
-  // 2) Legacy-Präfixe
-  if (firstLower === 'abc:' || firstLower === 'abc') {
-    return {
-      format: 'abc',
-      code: codeLines.join('\n').replace(/^abc:\s*/i, '').trim(),
-      options,
-      measureRange
-    };
-  }
-  if (firstLower === 'gabc:' || firstLower === 'gabc') {
-    return {
-      format: 'gabc',
-      code: codeLines.join('\n').replace(/^gabc:\s*/i, '').trim(),
-      options,
-      measureRange
-    };
-  }
-  if (firstLower === 'cmme:' || firstLower === 'cmme' || firstLower === 'cmme.xml:' || firstLower === 'cmme.xml') {
-    return {
-      format: 'cmme.xml',
-      code: extractXmlDocument(codeLines.join('\n').replace(/^cmme(?:\.xml)?:\s*/i, '').trim()) || '',
-      options,
-      measureRange
-    };
-  }
-  if (firstLower === 'humdrum:' || firstLower === 'humdrum' || firstLower === 'kern:' || firstLower === 'kern') {
-    return {
-      format: 'humdrum',
-      code: codeLines.join('\n').replace(/^(?:humdrum|kern):\s*/i, '').trim(),
-      options,
-      measureRange
-    };
-  }
-  if (firstLower === 'volpiano:' || firstLower === 'volpiano') {
-    return {
-      format: 'volpiano',
-      code: codeLines.join('\n').replace(/^volpiano:\s*/i, '').trim(),
-      options,
-      measureRange
-    };
-  }
-  if (firstLower === 'musicxml:' || firstLower === 'musicxml') {
-    return {
-      format: 'musicxml',
-      code: codeLines.join('\n').replace(/^musicxml:\s*/i, '').trim(),
-      options,
-      measureRange
-    };
-  }
-  if (firstLower === 'mei:' || firstLower === 'mei') {
-    return {
-      format: 'mei',
-      code: codeLines.join('\n').replace(/^mei:\s*/i, '').trim(),
-      options,
-      measureRange
-    };
-  }
-
-  // 3) Plaine and Easie inline detection (beginnend mit @)
+  // 2) Plaine and Easie inline detection (beginnend mit @)
   if (nonEmpty[0]?.startsWith('@')) {
     return {
       format: 'pae',
@@ -126,7 +65,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
     };
   }
 
-  // 4) Automatische Inline-Erkennung
+  // 3) Automatische Inline-Erkennung
   const inlineCode = codeLines.join('\n').trim();
   const xmlCode = extractXmlDocument(inlineCode);
   if (xmlCode && /<mei(?:\s|>)/i.test(xmlCode)) {
@@ -151,7 +90,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
     return { format: 'volpiano', code: inlineCode, options, measureRange };
   }
 
-  // 5) Datei-Modus (erste Zeile = Pfad)
+  // 4) Datei-Modus (erste Zeile = Pfad)
   const filePath = nonEmpty.shift();
   let fileFormat: VerovioFormat = 'mei';
   const lowerPath = filePath?.toLowerCase() || '';

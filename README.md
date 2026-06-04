@@ -161,12 +161,11 @@ Beati_omnes.cmme.xml
 ```COPY UNTIL HERE
 ```
 
-Inline CMME XML is recognized automatically. The optional `cmme:` prefix can be used to make the format explicit.
+Inline CMME XML is recognized automatically.
 
 ```
 COPY FROM HERE
 ```verovio
-cmme:
 <Piece xmlns="http://www.cmme.org">
   <GeneralData>
     <Title>Beati omnes</Title>
@@ -179,38 +178,64 @@ cmme:
 
 CMME files are passed to Verovio as `cmme.xml`; files ending in `.cmme.xml` or `.cmme` are recognized directly, and generic `.xml` files are checked for CMME structure after loading.
 
-and also Humdrum / `**kern` notation. Inline Humdrum is recognized automatically when the block starts with a Humdrum exclusive interpretation such as `**kern`; the optional `humdrum:` or `kern:` prefix can be used to make the format explicit.
+and also Humdrum / `**kern` notation. Humdrum data can include bibliographic reference records such as `!!!COM` and `!!!OTL` before the musical spines begin. The spines start at exclusive interpretations such as `**kern` or `**dynam`: in the example below, the first two spines are the two piano staves and the third spine contains dynamics.
 
 ```
 COPY FROM HERE
 ```verovio
-**kern
-*M4/4
-=1
-4c
-4d
-4e
-4f
-=2
-*-
+!!!COM: Mozart, Wolfgang Amadeus
+!!!OTL: Piano Sonata No. 2 in F major
+!!!OMV: 1
+!!!SCT1: K1 280
+!!!SCT2: K6 189e
+!!!OMD: Allegro assai
+**kern	**kern	**dynam
+*staff2	*staff1	*staff1/2
+*clefF4	*clefG2	*
+*k[b-]	*k[b-]	*
+*F:	*F:	*
+*M3/4	*M3/4	*
+*MM152	*MM152	*
+=1-	=1-	=1-
+4FF 4F	4c: 4f: 4a: 4cc:	f
+4C	4a/ 4cc/	.
+4AA	4a/ 4cc/	.
+=2	=2	=2
+4FF	4.a/ 4.cc/	.
+4FFF	.	.
+.	(16ddLL	.
+.	16ccJJ	.
+4r	16b-LL	.
+.	16a	.
+.	16g	.
+.	16fJJ	.
+=3	=3	=3
+8F 8AL	4ff	.
+8F 8A	.	.
+8F 8G 8B-	4ee	.
+8F 8G 8B-	.	.
+8F 8A 8c	4ee-)	.
+8F 8A 8cJ	.	.
+=4	=4	=4
+8F 8B- 8dL	4dd	.
+8F 8B- 8d	.	.
+8F 8B- 8d	4r	.
+8F 8B- 8d	.	.
+8F 8B- 8d	4r	.
+8F 8B- 8dJ	.	.
+=5	=5	=5
+8F 8G 8eL	(8ccL	p
+8F 8G 8e	8b-J)	.
+8F 8G 8e	4b-'	.
+8F 8G 8e	.	.
+8F 8G 8e	4r	.
+8F 8G 8eJ	.	.
+=6	=6	=6
+*-	*-	*-
 ```COPY UNTIL HERE
 ```
 
-or explicitly with a format prefix
-
-```
-COPY FROM HERE
-```verovio
-kern:
-**kern
-*M4/4
-=1
-4c
-4d
-=2
-*-
-```COPY UNTIL HERE
-```
+Inline Humdrum is recognized automatically when the block contains Humdrum reference records such as `!!!COM:` or starts directly with exclusive interpretations such as `**kern`.
 
 or from a Humdrum file in your vault
 
