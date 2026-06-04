@@ -89,7 +89,7 @@ const patchLzMidiPlugin = {
 			const midiFileLogOriginal = `  console.log('MidiFile 输入数据', data);`;
 			const midiFileLogPatched = `  // console.log('MidiFile 输入数据', data);`;
 			const seekOriginal = /\t      if \(\(queuedTime \+= obj\[1\]\) <= currentTime\) \{\n\t        offset = queuedTime;\n\t        if \(!fromCache\) \{\n\t          \/\/ 第一次执行程序\n\t          if \(!isA\) \{\n\t            continue;\n\t          \}\n\t        \} else \{\n\t          \/\/ 非第一次\n\t          continue;\n\t        \}\n\t      \}/;
-			const seekPatched = `      if ((queuedTime += obj[1]) <= currentTime) {
+			const seekPatched = `      if ((queuedTime += obj[1]) < currentTime) {
         offset = queuedTime;
         continue;
       }`;

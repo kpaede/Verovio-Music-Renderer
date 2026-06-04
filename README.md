@@ -2,11 +2,11 @@
 
 ![](screenshots/demo.gif)
 
-This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC, GABC, MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as MusicXML and PAE files, ABC, GABC and Volpiano) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
-- Rendering MEI, ABC, GABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
-- Converting selected ABC, GABC, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
+- Rendering MEI, ABC, GABC, Volpiano, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
+- Converting selected ABC, GABC, Volpiano, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
 - A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
@@ -176,6 +176,21 @@ COPY FROM HERE
 al--adducentur--vatican.gabc
 ```COPY UNTIL HERE
 ```
+
+Note: Verovio imports and renders GABC as neume notation, but it does not currently produce playable MIDI for these neumes. The playback button is therefore disabled for GABC renderings.
+
+and also Volpiano notation
+
+```
+COPY FROM HERE
+```verovio
+1---e--g--g---g--hj--h---h--gf7---e--f--g--f---e---4---h--g--h--j--g--h---3
+```COPY UNTIL HERE
+```
+‚
+Volpiano files can also be rendered from the vault when using a `.volpiano`, `.vol`, or `.vp` file extension.
+
+Note: Verovio imports Volpiano as regular MEI notes and produces playable MIDI. It does not currently preserve Volpiano neume grouping such as `gf` / `hgf` as grouped neumes, and line/page/column breaks such as `7` / `77` / `777` are not handled like in `music21.volpiano`.
 
 ## Plaine & Easie Editor
 You can open a Plaine & Easie editor from the Obsidian Command Palette with the command "Insert Plaine & Easie music codeblock". It provides a notation-oriented input modal with note values, rests, clefs, key signatures, a small piano keyboard, live Verovio preview, and inserts the result as a compact PAE code block.

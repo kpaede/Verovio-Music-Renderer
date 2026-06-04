@@ -12,6 +12,7 @@ export interface VerovioState {
   meiData: string;
   options: VerovioOptions;
   highlightColor?: string;
+  supportsPlayback: boolean;
   measureRange?: string;
   currentPage: number;
   totalPages: number;
@@ -252,6 +253,7 @@ export async function processVerovioCodeBlocks(
       meiData: window.VerovioToolkit.getMEI(),
       options: { ...verovioOptions, inputFrom: 'mei' },
       highlightColor: getHighlightColor(merged),
+      supportsPlayback: /<note\b/i.test(window.VerovioToolkit.getMEI()),
       measureRange,
       currentPage: 1,
       totalPages: window.VerovioToolkit.getPageCount(),
@@ -337,7 +339,10 @@ function createContainer(this: VerovioMusicRenderer, uid: string, parentEl: HTML
   const toolbar = container.createDiv('verovio-toolbar');
   toolbar.appendChild(createBtn('chevron-left', () => changePage(uid, -1)));
   toolbar.appendChild(createBtn('chevron-right', () => changePage(uid, 1)));
-  toolbar.appendChild(createBtn('play', () => playMIDI(uid)));
+  toolbar.appendChild(createBtn('play', () => playMIDI(uid), {
+    disabled: !instanceStateMap[uid]?.supportsPlayback,
+    title: instanceStateMap[uid]?.supportsPlayback ? 'Play' : 'Playback is not supported for GABC/neume notation in Verovio.',
+  }));
   toolbar.appendChild(createBtn('square', () => stopMIDI(uid)));
   toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
   toolbar.appendChild(createBtn('external-link', () => openFileExternally.call(this, uid)));
@@ -394,9 +399,14 @@ export function changePage(uid: string, delta: number) {
   updateSVG(uid, wrap);
 }
 
-function createBtn(icon: string, cb: () => void) {
+function createBtn(icon: string, cb: () => void, opts: { disabled?: boolean; title?: string } = {}) {
   const btn = createEl('button');
   setIcon(btn, icon);
+  if (opts.title) btn.title = opts.title;
+  if (opts.disabled) {
+    btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
+  }
   btn.addEventListener('click', e => { e.preventDefault(); cb(); });
   return btn;
 }

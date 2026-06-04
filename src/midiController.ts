@@ -1,5 +1,6 @@
 // midiController.ts
 import MIDI from 'lz-midi';
+import { Notice } from 'obsidian';
 import { instanceStateMap, changePage, updateSVG, NOTE_ON_OFFSET } from './verovioProcessor';
 
 interface MidiMessage {
@@ -45,6 +46,11 @@ function getPlaybackRange(st: { meiData: string; measureRange?: string }): Playb
 
 export function playMIDI(uid: string) {
   const st = instanceStateMap[uid];
+  if (!st?.supportsPlayback) {
+    new Notice('Playback is not supported for GABC/neume notation in Verovio.');
+    return;
+  }
+
   const container = activeDocument.querySelector<HTMLElement>(
     `.verovio-container[data-uid="${uid}"]`
   );
