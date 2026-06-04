@@ -14,6 +14,7 @@ export interface VerovioState {
   highlightColor?: string;
   selectionColor?: string;
   selectedElementIds: string[];
+  lastSelectedElementId?: string;
   playNoteOnClick: boolean;
   supportsPlayback: boolean;
   measureRange?: string;
@@ -259,6 +260,7 @@ export async function processVerovioCodeBlocks(
       highlightColor: getHighlightColor(merged),
       selectionColor: getSelectionColor(merged),
       selectedElementIds: [],
+      lastSelectedElementId: undefined,
       playNoteOnClick: Boolean(merged.playNoteOnClick),
       supportsPlayback: /<note\b/i.test(window.VerovioToolkit.getMEI()),
       measureRange: effectiveMeasureRange,
@@ -499,13 +501,18 @@ function attachNotationDragSelector(uid: string, wrapper: HTMLElement) {
     if (!st || st.selectedElementIds.length === 0) return;
 
     st.selectedElementIds = [];
+    st.lastSelectedElementId = undefined;
     applyNotationSelection(uid, wrapper);
   });
 
   svg.addEventListener('mousedown', (event) => {
-    if (event.button !== 0 || isTextClick(event.target)) return;
+    if (event.button !== 0) return;
     if (!(event.target instanceof Element)) return;
     if (event.target.closest('g.note[id],g.chord[id],g.rest[id],g.mRest[id],g.multiRest[id]')) return;
+    if (isTextClick(event.target)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
 
     container._suppressNotationClick = false;
     isMouseDown = true;
@@ -539,13 +546,14 @@ function attachNotationDragSelector(uid: string, wrapper: HTMLElement) {
 
     if (!selectionRect) {
       selectionRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      selectionRect.setAttribute('class', 'verovio-drag-selection-rect no-invert');
       pageMargin.appendChild(selectionRect);
     }
 
     const startPoint = transformPoint(startClient, matrix);
     const endPoint = transformPoint({ x: event.clientX, y: event.clientY }, matrix);
     const bounds = normalizeSvgRect(startPoint, endPoint);
-    updateDragSelectionRect(selectionRect, bounds);
+    updateDragSelectionRect(uid, selectionRect, bounds);
     const latest = updateDragSelection(uid, wrapper, selectableElements, bounds, baseSelection, event, endPoint);
     if (latest && latest !== latestElementId) {
       latestElementId = latest;
@@ -601,17 +609,21 @@ function normalizeSvgRect(start: DOMPoint, end: DOMPoint) {
   return { x, y, width, height };
 }
 
-function updateDragSelectionRect(rect: SVGRectElement, bounds: { x: number; y: number; width: number; height: number }) {
-  if (bounds.x) rect.setAttribute('x', String(bounds.x));
-  if (bounds.y) rect.setAttribute('y', String(bounds.y));
-  if (bounds.width) rect.setAttribute('width', String(bounds.width));
-  if (bounds.height) rect.setAttribute('height', String(bounds.height));
-  const strokeWidth = getDragSelectionStrokeWidth(rect);
+function updateDragSelectionRect(uid: string, rect: SVGRectElement, bounds: { x: number; y: number; width: number; height: number }) {
+  rect.setAttribute('x', String(bounds.x));
+  rect.setAttribute('y', String(bounds.y));
+  rect.setAttribute('width', String(bounds.width));
+  rect.setAttribute('height', String(bounds.height));
+  const color = instanceStateMap[uid]?.selectionColor || '#0066FF';
+  const strokeWidth = 1.25;
   rect.setAttribute('stroke-width', String(strokeWidth));
-  rect.setAttribute('stroke-dasharray', String(strokeWidth * 5));
-  rect.setAttribute('stroke', window.getComputedStyle(rect.parentElement ?? rect).color || 'black');
-  rect.setAttribute('fill', 'none');
+  rect.setAttribute('stroke-dasharray', '5 4');
+  rect.setAttribute('stroke', color);
+  rect.setAttribute('stroke-opacity', '0.85');
+  rect.setAttribute('fill', color);
+  rect.setAttribute('fill-opacity', '0.035');
   rect.setAttribute('pointer-events', 'none');
+  rect.setAttribute('vector-effect', 'non-scaling-stroke');
 }
 
 function updateDragSelection(
@@ -647,6 +659,7 @@ function updateDragSelection(
   });
 
   st.selectedElementIds = Array.from(selected);
+  st.lastSelectedElementId = latest?.id;
   applyNotationSelection(uid, wrapper);
   return latest?.id;
 }
@@ -664,12 +677,6 @@ function getElementCenter(element: SVGGraphicsElement): { x: number; y: number }
   } catch {
     return null;
   }
-}
-
-function getDragSelectionStrokeWidth(rect: SVGRectElement): number {
-  const staffPath = rect.ownerSVGElement?.querySelector<SVGPathElement>('g.staff > path');
-  const strokeWidth = staffPath?.getAttribute('stroke-width');
-  return strokeWidth ? Number.parseFloat(strokeWidth) || 10 : 10;
 }
 
 function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
@@ -695,6 +702,7 @@ function selectNotationElement(uid: string, wrapper: HTMLElement, elementId: str
   } else {
     st.selectedElementIds = [elementId];
   }
+  st.lastSelectedElementId = elementId;
 
   applyNotationSelection(uid, wrapper);
 }

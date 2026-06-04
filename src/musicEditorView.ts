@@ -15,89 +15,13 @@ import {
 } from '@codemirror/state';
 import { basicSetup } from '@codemirror/basic-setup';
 import { xml } from '@codemirror/lang-xml';
-import { openSearchPanel, search, searchKeymap } from '@codemirror/search';
+import { closeSearchPanel, openSearchPanel, search, searchKeymap, searchPanelOpen } from '@codemirror/search';
+import { createMeiEditorDropdownMenu } from './meiEditorDropdownMenus';
+import { applyMeiEditorCommand } from './meiEditorOperations';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
 type CombinedEditorTab = 'file' | 'block' | 'edit' | 'insert' | 'search';
-
-interface SidebarCommandGroup {
-  heading: string;
-  commands: string[];
-}
-
-const MANIPULATE_GROUPS: SidebarCommandGroup[] = [
-  {
-    heading: 'Placement',
-    commands: ['Invert placement', 'Between placement', 'Add vertical group'],
-  },
-  {
-    heading: 'Elements',
-    commands: ['Delete element', 'Convert note to rest', 'Toggle chord'],
-  },
-  {
-    heading: 'Pitch and duration',
-    commands: [
-      'Pitch chromatically up',
-      'Pitch chromatically down',
-      'Pitch diatonically up',
-      'Pitch diatonically down',
-      'Pitch 1 octave up',
-      'Pitch 1 octave down',
-      'Element 1 staff up',
-      'Element 1 staff down',
-      'Increase duration',
-      'Decrease duration',
-      'Toggle dotted note',
-    ],
-  },
-  {
-    heading: 'Utilities',
-    commands: ['Check @accid.ges', 'Check @metcon', 'Renumber measures', 'Add ids to MEI', 'Remove ids from MEI', 'Rerender via Verovio'],
-  },
-];
-
-const INSERT_GROUPS: SidebarCommandGroup[] = [
-  {
-    heading: 'Notes',
-    commands: ['Add note'],
-  },
-  {
-    heading: 'Accidentals',
-    commands: ['Double sharp', 'Sharp', 'Natural', 'Flat', 'Double flat'],
-  },
-  {
-    heading: 'Control events',
-    commands: ['Tempo', 'Directive', 'Dynamics', 'Slur', 'Tie', 'Crescendo hairpin', 'Diminuendo hairpin', 'Beam', 'BeamSpan'],
-  },
-  {
-    heading: 'Ornaments and marks',
-    commands: [
-      'Arpeggio',
-      'Fermata',
-      'Glissando',
-      'Pedal down',
-      'Pedal up',
-      'Trill',
-      'Turn',
-      'Turn lower',
-      'Mordent',
-      'Mordent upper',
-      'Octave (8va above)',
-      'Octave (15va above)',
-      'Octave (8va below)',
-      'Octave (15va below)',
-    ],
-  },
-  {
-    heading: 'Clefs',
-    commands: ['G clef before', 'G clef after', 'F clef before', 'F clef after', 'C clef before', 'C clef after'],
-  },
-  {
-    heading: 'Articulation',
-    commands: ['Staccato', 'Accent', 'Tenuto', 'Marcato', 'Staccatissimo', 'Spiccato'],
-  },
-];
 
 /** Debounce-Helfer: führt fn frühestens wait ms nach letztem Aufruf aus */
 function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): F {
@@ -370,19 +294,14 @@ export class MusicEditorView extends ItemView {
     blockPane.createEl('h2', { text: 'Codeblock' });
     const blockWrapper = blockPane.createDiv('verovio-editor-wrapper');
 
-    const editPane = body.createDiv('verovio-editor-tab-pane');
-    editPane.createEl('h2', { text: 'Edit' });
-    this.createMeiFriendActionPane(editPane, MANIPULATE_GROUPS);
+    const dropdown = createMeiEditorDropdownMenu(this.contentEl, {
+      getSelectedCount: () => this.currentUid ? instanceStateMap[this.currentUid]?.selectedElementIds.length ?? 0 : 0,
+      runCommand: (commandId) => this.runMeiEditorCommand(commandId),
+    });
 
-    const insertPane = body.createDiv('verovio-editor-tab-pane');
-    insertPane.createEl('h2', { text: 'Insert' });
-    this.createMeiFriendActionPane(insertPane, INSERT_GROUPS);
-
-    const panes: Record<Exclude<CombinedEditorTab, 'search'>, HTMLElement> = {
+    const panes: Record<'file' | 'block', HTMLElement> = {
       file: filePane,
       block: blockPane,
-      edit: editPane,
-      insert: insertPane,
     };
     const buttons: Partial<Record<CombinedEditorTab, HTMLButtonElement>> = {};
 
@@ -391,12 +310,19 @@ export class MusicEditorView extends ItemView {
         const editor = this.activeCombinedTab === 'block' ? this.currentBlockEditor : this.currentFileEditor;
         if (editor) {
           editor.requestMeasure();
-          openSearchPanel(editor);
+          if (searchPanelOpen(editor.state)) closeSearchPanel(editor);
+          else openSearchPanel(editor);
           editor.focus();
         }
         return;
       }
+      if (tab === 'edit' || tab === 'insert') {
+        const anchor = buttons[tab];
+        if (anchor) dropdown.toggle(tab === 'edit' ? 'manipulate' : 'insert', anchor);
+        return;
+      }
 
+      dropdown.close();
       this.activeCombinedTab = tab;
       Object.entries(panes).forEach(([key, pane]) => {
         pane.toggleClass('is-active', key === tab);
@@ -427,7 +353,8 @@ export class MusicEditorView extends ItemView {
           type: 'button',
           title: label,
           'aria-label': label,
-          role: 'tab',
+          role: tab === 'edit' || tab === 'insert' ? 'button' : 'tab',
+          ...(tab === 'edit' || tab === 'insert' ? { 'aria-haspopup': 'menu' } : {}),
         }
       });
       setIcon(button, icon);
@@ -511,32 +438,30 @@ export class MusicEditorView extends ItemView {
     this.jumpToXmlId(elementId, this.currentFileEditor);
   }
 
-  private createMeiFriendActionPane(parent: HTMLElement, groups: SidebarCommandGroup[]) {
-    const selectedCount = this.currentUid ? instanceStateMap[this.currentUid]?.selectedElementIds.length ?? 0 : 0;
-    parent.createEl('p', {
-      cls: 'verovio-editor-selection-status',
-      text: selectedCount === 1 ? '1 selected element' : `${selectedCount} selected elements`
+  private runMeiEditorCommand(commandId: string): boolean {
+    const editor = this.currentFileEditor ?? this.currentEditor;
+    const uid = this.currentUid;
+    if (!editor || !uid) {
+      new Notice('Open a MEI editor before running this command.');
+      return true;
+    }
+
+    const selectedIds = instanceStateMap[uid]?.selectedElementIds ?? [];
+    const currentText = editor.state.doc.toString();
+    const result = applyMeiEditorCommand(commandId, currentText, selectedIds);
+    if (!result.changed) {
+      if (result.message) new Notice(result.message);
+      return true;
+    }
+
+    editor.dispatch({
+      changes: { from: 0, to: editor.state.doc.length, insert: result.text },
     });
 
-    groups.forEach((group) => {
-      const section = parent.createDiv('verovio-editor-command-section');
-      section.createEl('h3', { text: group.heading });
-      const grid = section.createDiv('verovio-editor-command-grid');
-      group.commands.forEach((command) => {
-        const button = grid.createEl('button', {
-          cls: 'verovio-editor-command-button',
-          text: command,
-          attr: { type: 'button' }
-        });
-        button.addEventListener('click', () => this.showCommandPendingNotice(command));
-      });
-    });
-  }
-
-  private showCommandPendingNotice(command: string) {
-    const selectedCount = this.currentUid ? instanceStateMap[this.currentUid]?.selectedElementIds.length ?? 0 : 0;
-    const suffix = selectedCount ? ` (${selectedCount} selected)` : '';
-    new Notice(`${command} is visible now${suffix}; MEI transformation wiring comes next.`);
+    const lastSelected = instanceStateMap[uid]?.lastSelectedElementId ?? selectedIds.at(-1);
+    if (lastSelected) this.jumpToXmlId(lastSelected, editor);
+    new Notice('MEI updated.');
+    return true;
   }
 
   private jumpToXmlId(elementId: string, editor?: CMEditorView) {
