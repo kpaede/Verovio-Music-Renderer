@@ -21,8 +21,13 @@ declare module 'lz-midi' {
     setAnimation?: (cb: (frame: MidiAnimationFrame) => void) => void;
   }
 
+  interface MidiChannel {
+    instrument: number;
+  }
+
   const MIDI: {
     Player: MidiPlayer;
+    channels?: Record<number, MidiChannel>;
   };
   export default MIDI;
 }

@@ -20,6 +20,7 @@ declare global {
   interface Window {
     VerovioToolkit: VerovioToolkit;
     __verovioDefaultHighlight?: string;
+    __verovioHumdrumEnabled?: boolean;
   }
 }
 

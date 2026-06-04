@@ -88,6 +88,12 @@ const patchLzMidiPlugin = {
 			const soundfontUrlPatched = `_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';`;
 			const midiFileLogOriginal = `  console.log('MidiFile 输入数据', data);`;
 			const midiFileLogPatched = `  // console.log('MidiFile 输入数据', data);`;
+			const fileInstrumentsOriginal = `        // instruments: player.getFileInstruments(),
+	        onsuccess: onsuccess,`;
+			const fileInstrumentsPatched = `        instruments: player.getFileInstruments(),
+	        onsuccess: onsuccess,`;
+			const defaultInstrumentOriginal = `var gm = _root2.default.GM.byId[isFinite(program) ? program : channel];`;
+			const defaultInstrumentPatched = `var gm = _root2.default.GM.byId[isFinite(program) ? program : 0];`;
 			const seekOriginal = /\t {6}if \(\(queuedTime \+= obj\[1\]\) <= currentTime\) \{\n\t {8}offset = queuedTime;\n\t {8}if \(!fromCache\) \{\n\t {10}\/\/ 第一次执行程序\n\t {10}if \(!isA\) \{\n\t {12}continue;\n\t {10}\}\n\t {8}\} else \{\n\t {10}\/\/ 非第一次\n\t {10}continue;\n\t {8}\}\n\t {6}\}/;
 			const seekPatched = `      if ((queuedTime += obj[1]) < currentTime) {
         offset = queuedTime;
@@ -109,6 +115,12 @@ const patchLzMidiPlugin = {
 			if (!contents.includes(midiFileLogOriginal) && !contents.includes(midiFileLogPatched)) {
 				throw new Error("Unable to patch lz-midi MIDI file logging.");
 			}
+			if (!contents.includes(fileInstrumentsOriginal) && !contents.includes(fileInstrumentsPatched)) {
+				throw new Error("Unable to patch lz-midi MIDI file instruments.");
+			}
+			if (!contents.includes(defaultInstrumentOriginal) && !contents.includes(defaultInstrumentPatched)) {
+				throw new Error("Unable to patch lz-midi default MIDI instrument.");
+			}
 			if (!seekOriginal.test(contents) && !contents.includes(seekPatched)) {
 				throw new Error("Unable to patch lz-midi playback seeking.");
 			}
@@ -116,6 +128,8 @@ const patchLzMidiPlugin = {
 			contents = contents
 				.replace(soundfontUrlOriginal, soundfontUrlPatched)
 				.replace(midiFileLogOriginal, midiFileLogPatched)
+				.replace(fileInstrumentsOriginal, fileInstrumentsPatched)
+				.replace(defaultInstrumentOriginal, defaultInstrumentPatched)
 				.replace(seekOriginal, seekPatched)
 				.replace(intervalOriginal, intervalPatched)
 				.replace(soundfontOriginal, soundfontPatched)

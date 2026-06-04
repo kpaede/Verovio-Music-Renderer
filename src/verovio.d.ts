@@ -2,6 +2,10 @@ declare module 'verovio/wasm' {
   export default function createVerovioModule(): Promise<unknown>;
 }
 
+declare module 'verovio/wasm-hum' {
+  export default function createVerovioModule(): Promise<unknown>;
+}
+
 declare module 'verovio/esm' {
   export class VerovioToolkit {
     constructor(module: unknown);

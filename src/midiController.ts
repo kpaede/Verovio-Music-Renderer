@@ -44,6 +44,13 @@ function getPlaybackRange(st: { meiData: string; measureRange?: string }): Playb
   return { startMs: Number.isFinite(startMs) ? startMs : 0, endMs };
 }
 
+function resetMidiChannelsToPiano() {
+  if (!MIDI.channels) return;
+  Object.values(MIDI.channels).forEach((channel) => {
+    channel.instrument = 0;
+  });
+}
+
 export function playMIDI(uid: string) {
   const st = instanceStateMap[uid];
   if (!st?.supportsPlayback) {
@@ -63,6 +70,7 @@ export function playMIDI(uid: string) {
   MIDI.Player.stop();
   MIDI.Player.BPM = null;
   MIDI.Player.clearListeners?.();
+  resetMidiChannelsToPiano();
 
   window.VerovioToolkit.setOptions({ ...st.options, inputFrom: 'mei' });
   window.VerovioToolkit.loadData(st.meiData);

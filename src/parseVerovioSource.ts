@@ -1,6 +1,6 @@
 // parseVerovioSource.ts
 
-export type VerovioFormat = 'mei' | 'abc' | 'cmme.xml' | 'gabc' | 'musicxml' | 'pae' | 'volpiano';
+export type VerovioFormat = 'mei' | 'abc' | 'cmme.xml' | 'gabc' | 'humdrum' | 'musicxml' | 'pae' | 'volpiano';
 export type VerovioOptionValue = string | number | boolean;
 export type VerovioOptions = Record<string, VerovioOptionValue>;
 
@@ -78,7 +78,15 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   if (firstLower === 'cmme:' || firstLower === 'cmme' || firstLower === 'cmme.xml:' || firstLower === 'cmme.xml') {
     return {
       format: 'cmme.xml',
-      code: codeLines.join('\n').replace(/^cmme(?:\.xml)?:\s*/i, '').trim(),
+      code: extractXmlDocument(codeLines.join('\n').replace(/^cmme(?:\.xml)?:\s*/i, '').trim()) || '',
+      options,
+      measureRange
+    };
+  }
+  if (firstLower === 'humdrum:' || firstLower === 'humdrum' || firstLower === 'kern:' || firstLower === 'kern') {
+    return {
+      format: 'humdrum',
+      code: codeLines.join('\n').replace(/^(?:humdrum|kern):\s*/i, '').trim(),
       options,
       measureRange
     };
@@ -120,14 +128,18 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
 
   // 4) Automatische Inline-Erkennung
   const inlineCode = codeLines.join('\n').trim();
-  if (/<mei(?:\s|>)/i.test(inlineCode)) {
-    return { format: 'mei', code: inlineCode, options, measureRange };
+  const xmlCode = extractXmlDocument(inlineCode);
+  if (xmlCode && /<mei(?:\s|>)/i.test(xmlCode)) {
+    return { format: 'mei', code: xmlCode, options, measureRange };
   }
-  if (/<score-partwise(?:\s|>)/i.test(inlineCode) || /<score-timewise(?:\s|>)/i.test(inlineCode)) {
-    return { format: 'musicxml', code: inlineCode, options, measureRange };
+  if (xmlCode && (/<score-partwise(?:\s|>)/i.test(xmlCode) || /<score-timewise(?:\s|>)/i.test(xmlCode))) {
+    return { format: 'musicxml', code: xmlCode, options, measureRange };
   }
-  if (isCmmeInline(inlineCode)) {
-    return { format: 'cmme.xml', code: inlineCode, options, measureRange };
+  if (xmlCode && isCmmeInline(xmlCode)) {
+    return { format: 'cmme.xml', code: xmlCode, options, measureRange };
+  }
+  if (isHumdrumInline(nonEmpty, inlineCode)) {
+    return { format: 'humdrum', code: inlineCode, options, measureRange };
   }
   if (/^X:\d+/i.test(nonEmpty[0] || '')) {
     return { format: 'abc', code: inlineCode, options, measureRange };
@@ -145,6 +157,7 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   const lowerPath = filePath?.toLowerCase() || '';
   const ext = lowerPath.split('.').pop();
   if (lowerPath.endsWith('.cmme.xml') || ext === 'cmme') fileFormat = 'cmme.xml';
+  else if (ext === 'krn' || ext === 'kern' || ext === 'humdrum') fileFormat = 'humdrum';
   else if (ext === 'xml' || ext === 'musicxml') fileFormat = 'musicxml';
   else if (ext === 'abc') fileFormat = 'abc';
   else if (ext === 'gabc') fileFormat = 'gabc';
@@ -154,9 +167,17 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
 }
 
 export function isCmmeInline(inlineCode: string): boolean {
-  if (!inlineCode.trim().startsWith('<')) return false;
-  return /<(?:Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)\b/i.test(inlineCode)
-    && /<(?:GeneralData|VoiceData|Section|Mensuration|Note)\b/i.test(inlineCode);
+  const xmlCode = extractXmlDocument(inlineCode);
+  if (!xmlCode) return false;
+  return /<(?:Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)\b/i.test(xmlCode)
+    && /<(?:GeneralData|VoiceData|Section|Mensuration|Note)\b/i.test(xmlCode);
+}
+
+function extractXmlDocument(code: string): string | undefined {
+  const trimmed = code.trim();
+  const rootMatch = trimmed.match(/<(?:\?xml\b[^>]*>\s*)?(?:mei|score-partwise|score-timewise|Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)\b/i);
+  if (!rootMatch || rootMatch.index === undefined) return undefined;
+  return trimmed.slice(rootMatch.index).trim();
 }
 
 function isGabcInline(nonEmpty: string[], inlineCode: string): boolean {
@@ -169,6 +190,12 @@ function isGabcInline(nonEmpty: string[], inlineCode: string): boolean {
     if (sepIndex <= 0) return false;
     return headerKeys.includes(line.slice(0, sepIndex).trim().toLowerCase());
   });
+}
+
+function isHumdrumInline(nonEmpty: string[], inlineCode: string): boolean {
+  if (!nonEmpty.length) return false;
+  return /^\*\*(?:kern|dynam|text|recip|mens|deg|solfa|harm|root)(?:\s|\t|$)/i.test(nonEmpty[0])
+    || /^!!![A-Z0-9_]+:/m.test(inlineCode);
 }
 
 function isVolpianoInline(nonEmpty: string[], inlineCode: string): boolean {
