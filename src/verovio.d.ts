@@ -16,6 +16,7 @@ declare module 'verovio/esm' {
     getPageCount(): number;
     getVersion(): string;
     destroy(): void;
+    getTimeForElement(id: string): number;
     getElementsAtTime(ms: number): VerovioElementsAtTime;
     renderData(data: string, options?: VerovioOptions): string;
     validatePAE?(data: string): VerovioValidation;

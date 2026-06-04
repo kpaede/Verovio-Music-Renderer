@@ -6,10 +6,13 @@ declare module 'lz-midi' {
 
   interface MidiAnimationFrame {
     now: number;
+    end?: number;
   }
 
   interface MidiPlayer {
     BPM: number | null;
+    currentTime: number;
+    endTime: number;
     stop(): void;
     clearListeners?: () => void;
     addListener(cb: (data: MidiMessage) => void): void;

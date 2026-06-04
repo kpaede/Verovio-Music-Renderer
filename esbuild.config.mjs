@@ -88,6 +88,11 @@ const patchLzMidiPlugin = {
 			const soundfontUrlPatched = `_root2.default.soundfontUrl = 'https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/';`;
 			const midiFileLogOriginal = `  console.log('MidiFile 输入数据', data);`;
 			const midiFileLogPatched = `  // console.log('MidiFile 输入数据', data);`;
+			const seekOriginal = /\t      if \(\(queuedTime \+= obj\[1\]\) <= currentTime\) \{\n\t        offset = queuedTime;\n\t        if \(!fromCache\) \{\n\t          \/\/ 第一次执行程序\n\t          if \(!isA\) \{\n\t            continue;\n\t          \}\n\t        \} else \{\n\t          \/\/ 非第一次\n\t          continue;\n\t        \}\n\t      \}/;
+			const seekPatched = `      if ((queuedTime += obj[1]) <= currentTime) {
+        offset = queuedTime;
+        continue;
+      }`;
 
 			if (!contents.includes(intervalOriginal)) {
 				throw new Error("Unable to patch lz-midi audio detection interval.");
@@ -104,10 +109,14 @@ const patchLzMidiPlugin = {
 			if (!contents.includes(midiFileLogOriginal) && !contents.includes(midiFileLogPatched)) {
 				throw new Error("Unable to patch lz-midi MIDI file logging.");
 			}
+			if (!seekOriginal.test(contents) && !contents.includes(seekPatched)) {
+				throw new Error("Unable to patch lz-midi playback seeking.");
+			}
 
 			contents = contents
 				.replace(soundfontUrlOriginal, soundfontUrlPatched)
 				.replace(midiFileLogOriginal, midiFileLogPatched)
+				.replace(seekOriginal, seekPatched)
 				.replace(intervalOriginal, intervalPatched)
 				.replace(soundfontOriginal, soundfontPatched)
 				.replace(fallbackOriginal, fallbackPatched);
