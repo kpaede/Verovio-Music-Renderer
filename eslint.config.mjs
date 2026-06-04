@@ -10,6 +10,7 @@ export default defineConfig([
     ignores: [
       "eslint.config.mjs",
       "main.js",
+      "mei-friend-app-copy-just-read-or-copy/**",
       "node_modules/**",
     ],
   },

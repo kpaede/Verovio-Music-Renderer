@@ -43,8 +43,24 @@
     height: 24px;
 }
 
-:root { --verovio-play-color: #DC143C; }
+:root {
+  --verovio-play-color: #DC143C;
+  --verovio-selection-color: #0066FF;
+}
 .playing { fill: var(--verovio-play-color); }
+.verovio-selected,
+.verovio-selected * {
+  fill: var(--verovio-selection-color) !important;
+  stroke: var(--verovio-selection-color) !important;
+}
+
+.verovio-svg-wrapper g.note[id],
+.verovio-svg-wrapper g.chord[id],
+.verovio-svg-wrapper g.rest[id],
+.verovio-svg-wrapper g.mRest[id],
+.verovio-svg-wrapper g.multiRest[id] {
+  cursor: pointer;
+}
 
 /* Dark-mode: follow Obsidian's active theme automatically */
 .theme-dark .verovio-svg-wrapper {

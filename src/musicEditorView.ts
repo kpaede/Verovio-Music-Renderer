@@ -17,8 +17,6 @@ import { xml } from '@codemirror/lang-xml';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
-interface ElementInfo { line: number; index: number; }
-
 /** Debounce-Helfer: führt fn frühestens wait ms nach letztem Aufruf aus */
 function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): F {
   let timer: number;
@@ -45,7 +43,6 @@ const codeFontTheme = CMEditorView.theme({
 export class MusicEditorView extends ItemView {
   plugin: VerovioMusicRenderer;
   private currentEditor?: CMEditorView;
-  private currentElementMap?: Record<string, ElementInfo>;
   private editMode: 'block' | 'file' = 'block';
 
   // In-Memory-Snapshot der geladenen Datei
@@ -77,11 +74,16 @@ export class MusicEditorView extends ItemView {
     const canEditBlock = Boolean(clickMap[uid]);
     const canEditMeiFile = path?.toLowerCase().endsWith('.mei') ?? false;
 
+    if (elementId && canEditMeiFile && path && this.editMode === 'file' && this.sourcePath === path && this.currentEditor) {
+      this.jumpToXmlId(elementId);
+      return;
+    }
+
     if (canEditMeiFile && canEditBlock && path) {
       new ChooseMeiEditTargetModal(
         this.app,
         path,
-        () => { void this.openFile(path); },
+        () => { void this.openFile(path, elementId); },
         () => { void this.openBlock(uid, elementId); }
       ).open();
       return;
@@ -91,7 +93,7 @@ export class MusicEditorView extends ItemView {
       new ChooseMeiEditTargetModal(
         this.app,
         path,
-        () => { void this.openFile(path); }
+        () => { void this.openFile(path, elementId); }
       ).open();
       return;
     }
@@ -112,7 +114,7 @@ export class MusicEditorView extends ItemView {
       return;
     }
 
-    const { filePath, startLine, endLine, elementMap } = mapping;
+    const { filePath, startLine, endLine } = mapping;
     const file = this.app.vault.getAbstractFileByPath(filePath);
     if (!(file instanceof TFile)) {
       new Notice(`File not found.: ${filePath}`);
@@ -128,13 +130,12 @@ export class MusicEditorView extends ItemView {
     this.fileStartLine    = startLine;
     this.fileEndLine      = endLine;
     this.editMode         = 'block';
-    this.currentElementMap = elementMap;
 
     const blockText = lines.slice(startLine, endLine).join('\n');
     this.showEditor(blockText, elementId);
   }
 
-  public async openFile(path: string): Promise<void> {
+  public async openFile(path: string, elementId = ''): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) {
       new Notice(`File not found.: ${path}`);
@@ -148,9 +149,8 @@ export class MusicEditorView extends ItemView {
     this.fileStartLine = 0;
     this.fileEndLine = this.origLines.length;
     this.editMode = 'file';
-    this.currentElementMap = undefined;
 
-    this.showEditor(content, '');
+    this.showEditor(content, elementId);
   }
 
   /** Editor einrichten und debounced bei jeder Änderung speichern */
@@ -207,26 +207,35 @@ export class MusicEditorView extends ItemView {
     // Editor erzeugen
     this.currentEditor = new CMEditorView({ state, parent: this.contentEl });
 
-    // Cursor & Scroll: aktive Zeile nicht am unteren Rand, sondern weiter oben
-    if (elementId && this.currentElementMap) {
-      const info = this.currentElementMap[elementId];
-      if (info) {
-        const relLine = info.line - this.fileStartLine;
-        const lineNum = Math.min(Math.max(1, relLine), this.currentEditor.state.doc.lines);
-        const line    = this.currentEditor.state.doc.line(lineNum);
-
-        // 1. Selektion setzen
-        // 2. Scroll-Effekt nutzen: y="start" (oben ausrichten) + 50px Margin
-        this.currentEditor.dispatch({
-          selection: EditorSelection.range(line.from, line.from),
-          effects: CMEditorView.scrollIntoView(
-            EditorSelection.range(line.from, line.from),
-            { y: "start", yMargin: 50 }
-          )
-        });
-      }
-    }
+    this.jumpToXmlId(elementId);
   }
+
+  private jumpToXmlId(elementId: string) {
+    if (!elementId || !this.currentEditor) return;
+
+    const doc = this.currentEditor.state.doc;
+    const text = doc.toString();
+    const attrMatch = new RegExp(`xml:id\\s*=\\s*["']${escapeRegExp(elementId)}["']`).exec(text);
+    if (!attrMatch) {
+      new Notice(`xml:id not found in editor: ${elementId}`);
+      return;
+    }
+
+    const tagStart = text.lastIndexOf('<', attrMatch.index);
+    const previousTagEnd = text.lastIndexOf('>', attrMatch.index);
+    const pos = tagStart > previousTagEnd ? tagStart : attrMatch.index;
+    const cursor = EditorSelection.cursor(pos);
+
+    this.currentEditor.dispatch({
+      selection: cursor,
+      effects: CMEditorView.scrollIntoView(cursor, { y: 'start', yMargin: 50 })
+    });
+    this.currentEditor.focus();
+  }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 class ChooseMeiEditTargetModal extends Modal {

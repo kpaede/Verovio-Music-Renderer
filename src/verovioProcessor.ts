@@ -2,7 +2,7 @@ import VerovioMusicRenderer from './main';
 import { MarkdownPostProcessorContext, TFile, Notice, normalizePath, requestUrl, setIcon } from 'obsidian';
 import type { VerovioOptions } from './parseVerovioSource';
 import parseVerovioSource, { isCmmeInline, VerovioFormat } from './parseVerovioSource';
-import { playMIDI, stopMIDI } from './midiController';
+import { playMIDI, playSingleNote, stopMIDI } from './midiController';
 import { downloadSVG } from './svgDownloader';
 import { openFileExternally } from './externalOpener';
 import { VIEW_TYPE_MUSIC_EDITOR, MusicEditorView } from './musicEditorView';
@@ -12,6 +12,9 @@ export interface VerovioState {
   meiData: string;
   options: VerovioOptions;
   highlightColor?: string;
+  selectionColor?: string;
+  selectedElementIds: string[];
+  playNoteOnClick: boolean;
   supportsPlayback: boolean;
   measureRange?: string;
   currentPage: number;
@@ -21,6 +24,10 @@ export const instanceStateMap: Record<string, VerovioState> = {};
 
 /** Element-Info: Zeile (relativ inizial) und Parse-Index nur für Noten */
 interface ElementInfo { line: number; index: number; }
+
+interface VerovioContainerElement extends HTMLElement {
+  _pluginContext?: VerovioMusicRenderer;
+}
 
 interface GabcMetadata {
   title?: string;
@@ -46,9 +53,7 @@ export const sourceMap: Record<string, string> = {};
 /** MIDI-Offsets (für midiController) */
 export const NOTE_ON_OFFSET = 0.0;
 
-/** Zeilen-Offset beim Springen */
-const LINE_JUMP_OFFSET = 2;
-const PLUGIN_ONLY_OPTION_KEYS = new Set(['highlightColor', 'darkColor', 'darkMode', 'darkModeStyle']);
+const PLUGIN_ONLY_OPTION_KEYS = new Set(['highlightColor', 'selectionColor', 'playNoteOnClick', 'darkColor', 'darkMode', 'darkModeStyle']);
 
 export function sanitizeVerovioOptions(options: VerovioOptions): VerovioOptions {
   return Object.fromEntries(
@@ -58,6 +63,10 @@ export function sanitizeVerovioOptions(options: VerovioOptions): VerovioOptions 
 
 function getHighlightColor(options: VerovioOptions): string {
   return typeof options.highlightColor === 'string' ? options.highlightColor : '#DC143C';
+}
+
+function getSelectionColor(options: VerovioOptions): string {
+  return typeof options.selectionColor === 'string' ? options.selectionColor : '#0066FF';
 }
 
 function getInputFrom(format: VerovioFormat): string {
@@ -180,26 +189,6 @@ function hasMeasures(mei: string): boolean {
   return /<measure\b/i.test(mei);
 }
 
-/**
- * Parst MEI, injiziert xml:id nur für <note>-Tags und baut elementMap (relativ zur MEI-String-Zeile)
- */
-function injectIdsAndMap(mei: string, uid: string): { code: string; elementMap: Record<string, ElementInfo> } {
-  const lines = mei.split('\n');
-  const elementMap: Record<string, ElementInfo> = {};
-  let counter = 0;
-  const openTagRE = /<note\b[^>]*>/g;
-
-  const newLines = lines.map((line, idx) =>
-    line.replace(openTagRE, (full) => {
-      const xmlId = `${uid}-el${++counter}`;
-      elementMap[xmlId] = { line: idx + 1, index: counter };
-      return full.replace(/^<note/, `<note xml:id="${xmlId}"`);
-    })
-  );
-
-  return { code: newLines.join('\n'), elementMap };
-}
-
 /** Haupt-Renderer */
 export async function processVerovioCodeBlocks(
   this: VerovioMusicRenderer,
@@ -216,14 +205,7 @@ export async function processVerovioCodeBlocks(
     const { format, code, filePath, options, measureRange } = parseVerovioSource(source);
     const uid = `verovio-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
-    let workingCode = code;
-    let elementMap: Record<string, ElementInfo> = {};
-
-    if (format === 'mei' && code) {
-      const parsed = injectIdsAndMap(code, uid);
-      workingCode = parsed.code;
-      elementMap = parsed.elementMap;
-    }
+    const workingCode = code;
 
     let rawMEI: string;
     let loadInputFrom = 'mei';
@@ -274,6 +256,9 @@ export async function processVerovioCodeBlocks(
       meiData: window.VerovioToolkit.getMEI(),
       options: { ...verovioOptions, inputFrom: 'mei' },
       highlightColor: getHighlightColor(merged),
+      selectionColor: getSelectionColor(merged),
+      selectedElementIds: [],
+      playNoteOnClick: Boolean(merged.playNoteOnClick),
       supportsPlayback: /<note\b/i.test(window.VerovioToolkit.getMEI()),
       measureRange: effectiveMeasureRange,
       currentPage: 1,
@@ -282,18 +267,11 @@ export async function processVerovioCodeBlocks(
 
     const section: { lineStart: number; lineEnd: number } | null | undefined = ctx.getSectionInfo?.(el);
     if (section && ctx.sourcePath) {
-      const absMap: Record<string, ElementInfo> = {};
-      Object.entries(elementMap).forEach(([id, info]: [string, ElementInfo]) => {
-        absMap[id] = {
-          line: section.lineStart + info.line - 1 + LINE_JUMP_OFFSET,
-          index: info.index
-        };
-      });
       clickMap[uid] = {
         filePath: ctx.sourcePath,
         startLine: section.lineStart,
         endLine: section.lineEnd,
-        elementMap: absMap,
+        elementMap: {},
       };
     }
 
@@ -380,11 +358,14 @@ function decodePath(path: string): string {
 }
 
 function createContainer(plugin: VerovioMusicRenderer, uid: string, parentEl: HTMLElement) {
-  const container = parentEl.createDiv('verovio-container');
+  const container = parentEl.createDiv('verovio-container') as VerovioContainerElement;
+  container._pluginContext = plugin;
   container.dataset.uid = uid;
   // apply highlight color variable
   const color = instanceStateMap[uid]?.highlightColor || plugin.settings.highlightColor || '#DC143C';
   container.style.setProperty('--verovio-play-color', color);
+  const selectionColor = instanceStateMap[uid]?.selectionColor || plugin.settings.selectionColor || '#0066FF';
+  container.style.setProperty('--verovio-selection-color', selectionColor);
   const svgWrap = container.createDiv('verovio-svg-wrapper');
   updateSVG(uid, svgWrap);
 
@@ -412,6 +393,8 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   if (container) {
     const color = st.highlightColor || container.style.getPropertyValue('--verovio-play-color') || '#DC143C';
     container.style.setProperty('--verovio-play-color', color);
+    const selectionColor = st.selectionColor || container.style.getPropertyValue('--verovio-selection-color') || '#0066FF';
+    container.style.setProperty('--verovio-selection-color', selectionColor);
   }
   window.VerovioToolkit.setOptions({ ...sanitizeVerovioOptions(st.options), inputFrom: 'mei' });
   window.VerovioToolkit.loadData(st.meiData);
@@ -420,6 +403,8 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
   wrapper.innerHTML = '';
   wrapper.appendChild(doc.documentElement);
+  attachNotationClickHandlers(uid, wrapper);
+  applyNotationSelection(uid, wrapper);
 
   // Ensure currently-playing notes keep their color under dark-inversion
   try {
@@ -441,6 +426,73 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
       container.style.setProperty('--verovio-play-color', color);
     }
   } catch { /* ignore */ }
+}
+
+function attachNotationClickHandlers(uid: string, wrapper: HTMLElement) {
+  const container = wrapper.closest<VerovioContainerElement>('.verovio-container');
+  const plugin = container?._pluginContext;
+  if (!plugin) return;
+
+  const selector = [
+    'g.note[id]',
+    'g.chord[id]',
+    'g.rest[id]',
+    'g.mRest[id]',
+    'g.multiRest[id]',
+  ].join(',');
+
+  wrapper.querySelectorAll<SVGElement>(selector).forEach((element) => {
+    element.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (isTextClick(event.target)) return;
+      const elementId = element.id;
+      if (!elementId) return;
+
+      selectNotationElement(uid, wrapper, elementId, event);
+      if (instanceStateMap[uid]?.playNoteOnClick) playSingleNote(uid, elementId);
+      void openMusicEditorForSource(plugin, uid, elementId);
+    });
+  });
+}
+
+function isTextClick(target: EventTarget | null): boolean {
+  return target instanceof Element
+    && Boolean(target.closest('text,tspan,g.syl,g.verse,g.lyric,g.label,g.dir,g.dynam,g.harm'));
+}
+
+function selectNotationElement(uid: string, wrapper: HTMLElement, elementId: string, event: MouseEvent) {
+  const st = instanceStateMap[uid];
+  if (!st) return;
+
+  if (event.metaKey || event.ctrlKey) {
+    st.selectedElementIds = st.selectedElementIds.includes(elementId)
+      ? st.selectedElementIds.filter((id) => id !== elementId)
+      : [...st.selectedElementIds, elementId];
+  } else {
+    st.selectedElementIds = [elementId];
+  }
+
+  applyNotationSelection(uid, wrapper);
+}
+
+function applyNotationSelection(uid: string, wrapper: HTMLElement) {
+  const st = instanceStateMap[uid];
+  if (!st) return;
+
+  wrapper.querySelectorAll('.verovio-selected').forEach((element) => {
+    element.classList.remove('verovio-selected', 'no-invert');
+  });
+
+  st.selectedElementIds.forEach((id) => {
+    const element = wrapper.querySelector<SVGElement>(`#${cssEscape(id)}`);
+    if (!element) return;
+    element.classList.add('verovio-selected', 'no-invert');
+  });
+}
+
+function cssEscape(value: string): string {
+  return window.CSS?.escape ? window.CSS.escape(value) : value.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
 
 export function refreshRenderingsForSource(sourcePath: string, meiData: string) {

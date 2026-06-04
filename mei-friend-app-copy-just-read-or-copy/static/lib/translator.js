@@ -1,0 +1,237 @@
+/**
+ * Applies language packs to GUI elements
+ * Language packs need to be listed in supportedLanguages in defaults.js
+ */
+import { isSafari } from './defaults.js';
+import * as l from '../lang/lang.en.js'; // default language
+import { translateLanguageSelection } from './language-selector.js';
+import { drawRightFooter, pageInfoToStatusBar } from './main.js';
+import { refreshAnnotationsList } from './enrichment-panel.js';
+import Viewer from './viewer.js';
+
+/**
+ * Translator class
+ */
+export default class Translator {
+  constructor() {
+    this.defaultLangCode = 'en';
+    this.defaultLang = { ...l.lang }; // global object for default (English) language pack
+    this.langCode = this.defaultLangCode;
+    this.lang = { ...l.lang }; // global lang object from language pack files
+  } // constructor()
+
+  /**
+   * Change language of mei-friend GUI and refresh all menu items
+   * @param {string} languageCode
+   */
+  changeLanguage(languageCode) {
+    // update language selection
+    translateLanguageSelection(languageCode);
+    // change language, only if not default and different from current lang pack
+    if (languageCode !== this.defaultLangCode && languageCode !== this.langCode) {
+      const languagePack = '../lang/lang.' + languageCode + '.js';
+      console.log('Loading language pack: ', languagePack);
+      import(languagePack).then((p) => {
+        for (let key in p.lang) this.lang[key] = p.lang[key];
+        this.langCode = languageCode;
+        console.log('Language pack loaded: ' + languageCode + ', now translating.');
+        this.translateGui();
+      });
+    } else if (languageCode === this.defaultLangCode) {
+      for (let key in this.defaultLang) this.lang[key] = this.defaultLang[key];
+      console.log('Translating back to default language: ' + this.defaultLangCode);
+      this.langCode = languageCode;
+      this.translateGui();
+    }
+  } // changeLanguage()
+
+  /**
+   * Returns promise for importing the language pack for the language code
+   * @param {string} languageCode
+   */
+  async requestLanguagePack(languageCode) {
+    const languagePack = '../lang/lang.' + languageCode + '.js';
+    console.log('Loading language pack: ', languagePack);
+    return import(languagePack);
+  } //
+
+  /**
+   * Copy all keys of language object to internal translator.lang
+   * @param {Object} language
+   */
+  setLang(language) {
+    for (let key in language) this.lang[key] = language[key];
+  } // setLang()
+
+  /**
+   * Sets the class variable langCode
+   * @param {string} langCode
+   */
+  setLangCode(langCode) {
+    this.langCode = langCode;
+  } // setLangCode()
+
+  /**
+   * Refresh language of all mei-friend GUI items
+   */
+  translateGui() {
+    for (let key in this.lang) {
+      let el = document.getElementById(key);
+      if (el) {
+        // check if we need to consider classes
+        if ('classes' in this.lang[key]) {
+          for (let c of Object.keys(this.lang[key]['classes'])) {
+            if (el.classList.contains(c)) {
+              this.doTranslation(el, key, c);
+              break;
+            }
+          }
+        } else {
+          this.doTranslation(el, key);
+        }
+      }
+    }
+    pageInfoToStatusBar();
+    drawRightFooter();
+    refreshAnnotationsList();
+
+    this.handleLanguageExceptions();
+
+    if (isSafari) this.handleBrowserExceptions('Safari');
+
+    // Notify listeners that the UI strings are now in a (possibly) new language,
+    // so they can refresh any text they own outside the id-based auto-translate
+    // (e.g. dynamic tooltips set programmatically).
+    document.dispatchEvent(new CustomEvent('mf-language-changed'));
+  } // translateGui()
+
+  /**
+   * Translate the given element `el` with a key and optionally a className
+   * @param {Element} el
+   * @param {string} key
+   * @param {string} className
+   */
+  doTranslation(el, key, className = '') {
+    const v = false; // debug verbosity
+    if (v) console.log('key: ' + key + ' nodeName: ' + el.nodeName + ', el: ', el);
+    if (el.closest('div.optionsItem')) {
+      // for settings items
+      if (el.nodeName.toLowerCase() === 'select' && 'labels' in this.lang[key]) {
+        // modify values for select inputs
+        el.childNodes.forEach((opt, i) => {
+          if (i < this.lang[key].labels.length) opt.textContent = this.lang[key].labels[i];
+        });
+      }
+      if (el.nodeName.toLowerCase() === 'input' && el.getAttribute('type') === 'button') {
+        if (v) console.log('Found button: ', el);
+      } else {
+        el = el.parentElement.querySelector('label');
+        if (v) console.log('Found label: ', el);
+      }
+    } else if (el.nodeName.toLowerCase() === 'details') {
+      // for settings headers with details and summary
+      el = el.querySelector('summary');
+      if (v) console.log('Found summary: ', el);
+    }
+    // plus for all other items (menu items etc.) with IDs
+    if (el) {
+      let translationItem = this.lang[key];
+      if (className) {
+        if ('classes' in this.lang[key] && className in this.lang[key]['classes']) {
+          translationItem = this.lang[key]['classes'][className];
+        } else {
+          console.warning(
+            'doTranslation(): Called with className but cannot translate, reverting to default: ',
+            el,
+            key,
+            className
+          );
+        }
+      }
+      if ('text' in translationItem) {
+        if (el.nodeName.toLowerCase() === 'input' && el.getAttribute('type') === 'button') {
+          el.value = translationItem.text;
+        } else {
+          el.textContent = translationItem.text;
+        }
+      }
+      if ('value' in translationItem) el.value = translationItem.value;
+      if ('description' in translationItem) el.title = translationItem.description;
+      if ('html' in translationItem) el.innerHTML = translationItem.html;
+      if ('placeholder' in translationItem) el.setAttribute('placeholder', translationItem.placeholder);
+    }
+  } // doTranslation()
+
+  /**
+   *
+   * @param {string} dateString
+   * @returns {string} the translated date string
+   */
+  translateDate(dateString) {
+    console.log('translateDate(): ', dateString);
+    let translatedDate = dateString;
+    for (let key of Object.keys(this.lang.month)) {
+      let i = dateString.search(this.defaultLang.month[key]);
+      if (i > 0) {
+        translatedDate = dateString.replace(this.defaultLang.month[key], this.lang.month[key]);
+        break;
+      }
+      i = dateString.search(this.defaultLang.month[key].substring(0, 3));
+      if (i > 0) {
+        translatedDate = dateString.replace(this.defaultLang.month[key].substring(0, 3), this.lang.month[key]);
+        break;
+      }
+    }
+    console.log('Translated date: ', translatedDate);
+    return translatedDate;
+  } // translateDate()
+
+  /**
+   *
+   */
+  handleLanguageExceptions() {
+    if (this.langCode === 'ja') {
+      // apply custom font-family settings for japanese language
+      document.querySelector('body').classList.add('lang_ja');
+    } else {
+      document.querySelector('body').classList.remove('lang_ja');
+    }
+  } // handleLanguageExceptions()
+
+  /**
+   * @param {Viewer} v
+   * @param {string} browserName
+   */
+  handleBrowserExceptions(browserName = '') {
+    if (browserName === 'Safari') {
+      // tell at multiple place that Safari is not a browser for mei-friend!
+      let alert = document.getElementById('alertOverlay');
+      if (alert && alert.style.display !== 'none') {
+        document.getElementById('alertMessage').innerHTML = this.lang.isSafariWarning.text;
+      }
+      let vs = document.getElementById('validation-status');
+      if (vs) {
+        vs.title = this.lang.isSafariWarning.text;
+      }
+      Viewer.updateSchemaStatusDisplay('error', '', this.lang.isSafariWarning.text);
+      let mv = document.getElementById('manualValidate');
+      if (mv) {
+        mv.disabled = true;
+        mv.classList.add('disabled');
+        mv.title = this.lang.isSafariWarning.text;
+      }
+      let av = document.getElementById('autoValidate')?.parentElement;
+      if (av) {
+        av.classList.add('disabled');
+        av.disabled = true;
+        av.title = this.lang.isSafariWarning.text;
+      }
+      let asvr = document.getElementById('autoShowValidationReport')?.parentElement;
+      if (asvr) {
+        asvr.classList.add('disabled');
+        asvr.disabled = true;
+        asvr.title = this.lang.isSafariWarning.text;
+      }
+    }
+  } // handleBrowserExceptions()
+} // class Translator()

@@ -9,6 +9,8 @@ export interface VerovioPluginSettings {
   pageWidth: number;
   font: string;
   highlightColor?: string;
+  selectionColor?: string;
+  playNoteOnClick: boolean;
 }
 
 export const DEFAULT_SETTINGS: VerovioPluginSettings = {
@@ -18,7 +20,9 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   breaks: 'auto',
   pageWidth: 700,
   font: 'Leland',
-  highlightColor: '#DC143C'
+  highlightColor: '#DC143C',
+  selectionColor: '#0066FF',
+  playNoteOnClick: false
 }
 
 export class VerovioSettingTab extends PluginSettingTab {
@@ -108,11 +112,46 @@ export class VerovioSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Highlight color')
       .setDesc('Hex color used for currently-playing note highlight')
+      .addColorPicker(color => color
+        .setValue(this.plugin.settings.highlightColor || '#DC143C')
+        .onChange(async (value) => {
+          this.plugin.settings.highlightColor = value || '#DC143C';
+          await this.plugin.saveSettings();
+          this.display();
+        }))
       .addText(text => text
         .setPlaceholder('#DC143C')
         .setValue(this.plugin.settings.highlightColor || '#DC143C')
         .onChange(async (value) => {
           this.plugin.settings.highlightColor = value || '#DC143C';
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Selection color')
+      .setDesc('Hex color used for clicked notation elements')
+      .addColorPicker(color => color
+        .setValue(this.plugin.settings.selectionColor || '#0066FF')
+        .onChange(async (value) => {
+          this.plugin.settings.selectionColor = value || '#0066FF';
+          await this.plugin.saveSettings();
+          this.display();
+        }))
+      .addText(text => text
+        .setPlaceholder('#0066FF')
+        .setValue(this.plugin.settings.selectionColor || '#0066FF')
+        .onChange(async (value) => {
+          this.plugin.settings.selectionColor = value || '#0066FF';
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Play note on click')
+      .setDesc('Play the clicked note or chord as a short piano tone')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.playNoteOnClick)
+        .onChange(async (value) => {
+          this.plugin.settings.playNoteOnClick = value;
           await this.plugin.saveSettings();
         }));
 

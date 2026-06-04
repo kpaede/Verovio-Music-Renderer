@@ -1,0 +1,443 @@
+/* Navbar container */
+.navbar {
+  float: left;
+  overflow: hidden;
+  background-color: var(--navbarBackgroundColor);
+  border-radius: 4px;
+  display: flex;
+  flex-wrap: nowrap;
+  min-width: 410px;
+  z-index: 15;
+}
+
+.navbar :first-child {
+  /* shrink the user's github name first */
+  flex-shrink: 5;
+}
+
+/* Links inside the navbar */
+.navbar a {
+  float: left;
+  font-size: 12pt;
+  text-align: center;
+  padding: 3px 12px;
+  text-decoration: none;
+}
+
+.keyShortCut {
+  color: var(--keyboardShortCutColor);
+  font-weight: bold;
+  /* border: 1px solid darkblue;
+  border-radius: 2px; */
+  align-self: flex-end;
+  margin-left: 5px;
+}
+
+.keyShortCut.mac {
+  display: none;
+}
+
+.keyShortCut.mac.platform-mac {
+  display: block;
+}
+
+.keyShortCut.nonmac {
+  display: none;
+}
+
+.keyShortCut.nonmac.platform-nonmac {
+  display: block;
+}
+
+.keyShortCut > .keyIcon {
+  border-color: var(--keyboardShortCutColor);
+  border-width: 1px;
+}
+
+/* The dropdown container */
+.dropdown {
+  float: left;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Dropdown button */
+.dropdown .dropbtn {
+  cursor: pointer;
+  font-size: 12pt;
+  border: none;
+  outline: none;
+  color: var(--textColor);
+  padding: 3px 12px;
+  background-color: inherit;
+  font-family: inherit;
+  /* Important for vertical align on mobile phones */
+  margin: 0;
+  /* Important for vertical align on mobile phones */
+}
+
+/* Add a background color to navbar links on hover */
+.navbar a:hover,
+.dropdown:hover .dropbtn {
+  background-color: var(--dropdownHeadingColor);
+}
+
+/* Dropdown content (hidden by default) */
+.dropdownContent {
+  display: none;
+  position: absolute;
+  background-color: var(--dropdownBackgroundColor);
+  /* filter: brightness(140%); */
+  /* background-color: #edf2f7; // lightsteelblue 90%: #dbe4f0 // 95%: #edf2f7 */
+  opacity: 0.99;
+  min-width: 160px;
+  border: 1px solid darkgray;
+  border-top-right-radius: 4px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0px 8px 12px 0px rgba(0, 0, 0, 0.2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 90%;
+  z-index: 99;
+  padding-bottom: 6px;
+}
+
+#GithubMenu {
+  min-height: 90%;
+}
+
+.dropdownLine {
+  /* background-color: darkgray; */
+  border: 1px solid var(--dropdownBorderColor);
+  border-radius: 1px;
+  margin: 4px 10px;
+}
+
+.dropdownHead {
+  background-color: var(--dropdownBackgroundColor);
+  font-weight: 900;
+}
+
+/* Links inside the dropdown */
+.dropdownContent a {
+  cursor: pointer;
+  float: none;
+  color: var(--textColor);
+  padding: 3px 12px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.dropdownContent a .btn {
+  background-color: var(--settingsBackgroundAlternativeColor);
+}
+
+.dropdownContent a:hover .btn,
+.dropdownContent tr:hover {
+  background-color: var(--settingsBackgroundColor);
+}
+
+.dropdownContent table {
+  border: 0px;
+  border-spacing: 0;
+}
+
+#GithubMenu.dropdownContent a {
+  justify-content: flex-start;
+}
+
+#githubLoginLink {
+  float: unset;
+  color: unset;
+  text-align: unset;
+  padding: unset;
+}
+
+.dropdownContent input,
+.dropdownContent table {
+  margin: 3px 12px;
+}
+
+/* Add a grey background color to dropdown links on hover */
+.dropdownContent a:hover {
+  background-color: var(--dropdownHeadingColor);
+}
+
+/* Show the dropdown menu on hover */
+.dropdown:hover .dropdownContent.show {
+  display: block;
+}
+
+.dropdownContent.forceShow {
+  display: block;
+}
+
+/* Show all the whitespace in the github dropdown file names
+   - Whitespace in filenames is significant, so users should see it if it's there
+   - Since the filenames are stored on the DOM, letting the browser collapse
+     whitespace breaks the ability of the github integration to open files with
+     collapsable whitespace sequences in their names */
+.branchContents {
+  white-space: pre;
+}
+
+#logTable {
+  font-size: 8pt;
+  white-space: nowrap;
+  color: var(--textColor);
+}
+
+#logTable a {
+  font-size: unset;
+}
+
+#logTable tr:nth-child(even) {
+  background-color: var(--settingsBackgroundAlternativeColor);
+}
+
+#GithubLogo,
+#forkRepoGithubLogo {
+  fill: var(--textColor);
+  height: 0.75em;
+  margin-right: -0.2em;
+}
+
+#forkRepoGithubLogo {
+  vertical-align: Baseline;
+  filter: invert(1);
+}
+
+@keyframes spinning {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(359deg);
+  }
+}
+
+.clockwise {
+  animation-name: spinning;
+  animation-duration: 1s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes reversing {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(-359deg);
+  }
+}
+
+.anticlockwise {
+  animation-name: reversing;
+  animation-duration: 1s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.menu-icon {
+  width: 16px;
+  margin-right: 10px;
+  margin-left: 26px;
+}
+
+.wide-menu-icon {
+  width: 48px;
+  margin-right: 4px;
+  margin-left: 0px;
+}
+
+#fileStatus {
+  font-size: 10pt;
+  font-family: monospace;
+  padding: 3px 6px;
+  background: var(--backgroundColor);
+  color: var(--fileStatusColor);
+  white-space: nowrap;
+  display: grid;
+  grid-template-columns: auto auto auto auto auto; /* five elements within fileStatus */
+  align-content: center;
+  align-items: center;
+  cursor: default;
+  flex-shrink: 6;
+}
+
+#fileStatus #schemaStatus {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 6pt;
+  font-weight: bold;
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 4px;
+  padding: 2px;
+  max-height: calc(1em + 2px);
+}
+
+#fileStatus #fileNameContainer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#fileStatus #fileName {
+  white-space: pre;
+}
+
+#fileStatus #fileChanged, #remoteFileChanged {
+  margin-left: 0.2em;
+}
+
+#fileStatus.changed {
+  color: var(--fileStatusChangedColor);
+}
+
+#fileStatus.warn #fileName,
+#fileStatus.warn #fileLocation,
+#commitFileName.warn {
+  text-decoration: var(--fileStatusWarnColor) dotted underline;
+}
+
+#fileStatus #fileStorageExceeded.warn {
+  color: var(--fileStatusWarnColor);
+  font-weight: bolder;
+  background: var(--settingsLinkBackgroundColor);
+  border: 1px solid var(--fileStatusWarnColor);
+  cursor: default;
+  padding: 1px 3px;
+}
+
+#commitFileNameEdit {
+  font-size: 12pt;
+  float: none;
+  color: var(--textColor);
+  padding: 3px 12px;
+  display: block;
+  text-align: left;
+}
+
+#fileName[contenteditable] {
+  padding: 2px 2px;
+  border-width: 1px;
+  border-style: dotted;
+  border-radius: 4px;
+  cursor: text;
+}
+
+#commitFileName {
+  text-decoration: var(--textColor) dotted underline;
+  background: var(--dropdownHeadingColor);
+  padding: 2px 2px;
+  cursor: text;
+}
+
+#commitFileName:focus {
+  background: var(--textColor);
+  color: var(--dropdownHeadingColor);
+}
+
+#commitMessageInput.warn {
+  background: var(--textColor);
+  color: var(--dropdownHeadingColor);
+  border: 1px dotted var(--fileStatusWarnColor);
+}
+
+#commitMessageInput[disabled],
+#commitButton[disabled] {
+  cursor: not-allowed;
+}
+
+.pdfOff {
+  display: none;
+}
+
+.pdfOn {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin-top: 50px;
+  margin-bottom: 25px;
+  margin-left: 5px;
+  margin-right: 365px;
+  border: 2px solid var(--overlayBorderColor);
+  border-radius: 4px;
+  background-color: var(--backgroundColor);
+  background-blend-mode: difference;
+  opacity: 0.98;
+  z-index: 200;
+}
+
+#pageRangeSelectorDiv {
+  max-width: 160px;
+}
+
+#pageRangeItems {
+  max-width: 160px;
+}
+
+#pageRangeItems div {
+  cursor: pointer;
+  float: none;
+  color: var(--textColor);
+  padding: 2px 12px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#pageRangeSelectorDiv input[type='number'] {
+  max-width: 45px;
+}
+
+#pageRangeSelectorDiv input[type='text'] {
+  max-width: 120px;
+}
+
+/* language selection list */
+#languageSelectionList {
+  position: absolute;
+  right: 0px;
+  border-radius: 4px;
+  overflow: auto;
+  padding-top: 0.2em;
+}
+
+#languageSelectionList td {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  color: var(--textColor);
+}
+
+#languageSelectionList .selectedLang {
+  background-color: var(--settingsBackgroundColor);
+}
+
+#languageSelectionList .selectedLang td {
+  border-top: 1px solid var(--textColor);
+  border-bottom: 1px solid var(--textColor);
+}
+
+#languageSelectionList .selectedLang td:first-child {
+  border-left: 1px solid var(--textColor);
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+#languageSelectionList .selectedLang td:last-child {
+  border-right: 1px solid var(--textColor);
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}

@@ -102,6 +102,8 @@ export default class VerovioMusicRenderer extends Plugin {
       if (st) {
         st.options = sanitizeVerovioOptions({ ...st.options, ...this.settings });
         st.highlightColor = this.settings.highlightColor || st.highlightColor;
+        st.selectionColor = this.settings.selectionColor || st.selectionColor;
+        st.playNoteOnClick = this.settings.playNoteOnClick;
       }
       updateSVG(uid, wrapper);
     });

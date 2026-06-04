@@ -13,6 +13,13 @@ interface PlaybackRange {
   endMs?: number;
 }
 
+const SINGLE_NOTE_CHANNEL = 0;
+const SINGLE_NOTE_VELOCITY = 100;
+const SINGLE_NOTE_DURATION_SECONDS = 0.8;
+let singleNoteSoundReady = false;
+let singleNoteSoundLoading = false;
+const pendingSingleNotes: number[][] = [];
+
 function getMeasureRangeBounds(range?: string): { start?: number; end?: number } {
   if (!range) return {};
 
@@ -49,6 +56,103 @@ function resetMidiChannelsToPiano() {
   Object.values(MIDI.channels).forEach((channel) => {
     channel.instrument = 0;
   });
+}
+
+export function playSingleNote(uid: string, elementId: string) {
+  const st = instanceStateMap[uid];
+  if (!st?.supportsPlayback) return;
+
+  const notes = getMidiNotesForElement(st.meiData, elementId);
+  if (!notes.length) return;
+
+  playPianoNotes(notes);
+}
+
+function playPianoNotes(notes: number[]) {
+  const uniqueNotes = Array.from(new Set(notes));
+
+  if (!singleNoteSoundReady) {
+    pendingSingleNotes.push(uniqueNotes);
+    loadSingleNoteSound();
+    return;
+  }
+
+  resetMidiChannelsToPiano();
+  MIDI.programChange?.(SINGLE_NOTE_CHANNEL, 0, 0);
+  MIDI.setVolume?.(SINGLE_NOTE_CHANNEL, 127, 0);
+  uniqueNotes.forEach((note) => {
+    MIDI.noteOn?.(SINGLE_NOTE_CHANNEL, note, SINGLE_NOTE_VELOCITY, 0);
+    MIDI.noteOff?.(SINGLE_NOTE_CHANNEL, note, SINGLE_NOTE_DURATION_SECONDS);
+  });
+}
+
+function loadSingleNoteSound() {
+  if (singleNoteSoundLoading) return;
+  singleNoteSoundLoading = true;
+
+  MIDI.loadPlugin?.({
+    instrument: 'acoustic_grand_piano',
+    onsuccess: () => {
+      singleNoteSoundReady = true;
+      singleNoteSoundLoading = false;
+      while (pendingSingleNotes.length) {
+        const notes = pendingSingleNotes.shift();
+        if (notes) playPianoNotes(notes);
+      }
+    },
+    onerror: (error: unknown) => {
+      singleNoteSoundLoading = false;
+      pendingSingleNotes.length = 0;
+      console.error('Unable to load single-note sound.', error);
+      new Notice('Unable to load piano sound.');
+    },
+  });
+}
+
+function getMidiNotesForElement(mei: string, elementId: string): number[] {
+  const doc = new DOMParser().parseFromString(mei, 'application/xml');
+  const element = findElementByXmlId(doc, elementId);
+  if (!element) return [];
+
+  const noteElements = element.tagName.toLowerCase() === 'note'
+    ? [element]
+    : Array.from(element.querySelectorAll('note'));
+
+  return noteElements
+    .map(getMidiNote)
+    .filter((note): note is number => typeof note === 'number');
+}
+
+function findElementByXmlId(doc: Document, elementId: string): Element | undefined {
+  return Array.from(doc.getElementsByTagName('*')).find((element) =>
+    element.getAttribute('xml:id') === elementId || element.getAttribute('id') === elementId
+  );
+}
+
+function getMidiNote(note: Element): number | undefined {
+  if (note.getAttribute('grace') || note.getAttribute('cue')) return undefined;
+
+  const pname = note.getAttribute('pname')?.toLowerCase();
+  const oct = Number(note.getAttribute('oct'));
+  if (!pname || !Number.isFinite(oct)) return undefined;
+
+  const pitchClass = pitchClassForPname(pname);
+  if (pitchClass === undefined) return undefined;
+
+  return (oct + 1) * 12 + pitchClass + accidentalOffset(note);
+}
+
+function pitchClassForPname(pname: string): number | undefined {
+  return { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }[pname as 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g'];
+}
+
+function accidentalOffset(note: Element): number {
+  const accid = note.getAttribute('accid.ges') || note.getAttribute('accid') || '';
+  if (accid.includes('ss')) return 2;
+  if (accid.includes('ff')) return -2;
+  if (accid.includes('s')) return 1;
+  if (accid.includes('f')) return -1;
+  return 0;
 }
 
 export function playMIDI(uid: string) {
