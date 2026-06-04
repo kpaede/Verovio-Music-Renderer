@@ -1,7 +1,7 @@
 import VerovioMusicRenderer from './main';
-import { MarkdownPostProcessorContext, TFile, Notice, requestUrl, setIcon } from 'obsidian';
+import { MarkdownPostProcessorContext, TFile, Notice, normalizePath, requestUrl, setIcon } from 'obsidian';
 import type { VerovioOptions } from './parseVerovioSource';
-import parseVerovioSource, { VerovioFormat } from './parseVerovioSource';
+import parseVerovioSource, { isCmmeInline, VerovioFormat } from './parseVerovioSource';
 import { playMIDI, stopMIDI } from './midiController';
 import { downloadSVG } from './svgDownloader';
 import { openFileExternally } from './externalOpener';
@@ -163,6 +163,23 @@ function escapeXml(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+function normalizeMeasureRange(measureRange?: string): string | undefined {
+  const trimmed = measureRange?.trim();
+  if (!trimmed) return undefined;
+  return /^\d+$/.test(trimmed) ? `${trimmed}-${trimmed}` : trimmed;
+}
+
+function applyMeasureRange(measureRange?: string) {
+  const normalized = normalizeMeasureRange(measureRange);
+  if (!normalized) return;
+  window.VerovioToolkit.select({ measureRange: normalized });
+  window.VerovioToolkit.redoLayout();
+}
+
+function hasMeasures(mei: string): boolean {
+  return /<measure\b/i.test(mei);
+}
+
 /**
  * Parst MEI, injiziert xml:id nur für <note>-Tags und baut elementMap (relativ zur MEI-String-Zeile)
  */
@@ -222,7 +239,7 @@ export async function processVerovioCodeBlocks(
       }
       loadInputFrom = 'mei';
     } else if (filePath) {
-      const fileData = await fetchMEIData.call(this, filePath);
+      const fileData = await fetchMEIData.call(this, filePath, ctx.sourcePath);
       if (format === 'gabc') {
         const gabc = prepareGabcInput(fileData);
         rawMEI = addGabcMetadataToMEI(
@@ -232,7 +249,7 @@ export async function processVerovioCodeBlocks(
         loadInputFrom = 'mei';
       } else {
         rawMEI = fileData;
-        loadInputFrom = getInputFrom(format);
+        loadInputFrom = getInputFrom(format === 'musicxml' && isCmmeInline(fileData) ? 'cmme.xml' : format);
       }
       // Fix: Mapping UID statt Source
       sourceMap[uid] = filePath;
@@ -244,17 +261,19 @@ export async function processVerovioCodeBlocks(
     const verovioOptions = sanitizeVerovioOptions(merged);
     window.VerovioToolkit.setOptions({ ...verovioOptions, inputFrom: loadInputFrom });
     window.VerovioToolkit.loadData(rawMEI);
-    if (measureRange && /^\d+$/.test(measureRange)) {
-      window.VerovioToolkit.select({ measureRange: `${measureRange}-${measureRange}` });
-      window.VerovioToolkit.redoLayout();
+    const importedMEI = window.VerovioToolkit.getMEI();
+    const effectiveMeasureRange = measureRange && hasMeasures(importedMEI) ? measureRange : undefined;
+    if (measureRange && !effectiveMeasureRange) {
+      new Notice('measureRange needs measure-based MEI; this import has no <measure> elements.');
     }
+    applyMeasureRange(effectiveMeasureRange);
 
     instanceStateMap[uid] = {
       meiData: window.VerovioToolkit.getMEI(),
       options: { ...verovioOptions, inputFrom: 'mei' },
       highlightColor: getHighlightColor(merged),
       supportsPlayback: /<note\b/i.test(window.VerovioToolkit.getMEI()),
-      measureRange,
+      measureRange: effectiveMeasureRange,
       currentPage: 1,
       totalPages: window.VerovioToolkit.getPageCount(),
     };
@@ -315,16 +334,59 @@ export async function processVerovioCodeBlocks(
  * Network requests are triggered on-demand only when the user explicitly provides an external URL.
  * No automatic polling, periodic updates, or background data transmission occurs.
  */
-async function fetchMEIData(this: VerovioMusicRenderer, path: string) {
+async function fetchMEIData(this: VerovioMusicRenderer, path: string, sourcePath?: string) {
   if (/^https?:\/\//.test(path)) {
     // On-demand fetch: Only triggered by explicit user code block rendering with external URL
     const res = await requestUrl({ url: path });
     if (res.status !== 200) throw new Error(`Failed to fetch ${path}: HTTP ${res.status}`);
     return res.text;
   }
-  const file = this.app.vault.getAbstractFileByPath(path);
+  const file = resolveVaultFile.call(this, path, sourcePath);
   if (!(file instanceof TFile)) throw new Error(`File not found: ${path}`);
   return this.app.vault.read(file);
+}
+
+function resolveVaultFile(this: VerovioMusicRenderer, path: string, sourcePath?: string): TFile | null {
+  const cleanPath = stripObsidianLink(path.trim());
+  const decodedPath = decodePath(cleanPath);
+  const candidates = new Set<string>([cleanPath, decodedPath]);
+
+  if (sourcePath) {
+    const sourceDir = sourcePath.includes('/') ? sourcePath.slice(0, sourcePath.lastIndexOf('/')) : '';
+    for (const candidate of Array.from(candidates)) {
+      if (!candidate.startsWith('/') && !candidate.startsWith('./') && !candidate.startsWith('../')) {
+        candidates.add(normalizePath(sourceDir ? `${sourceDir}/${candidate}` : candidate));
+      } else {
+        candidates.add(normalizePath(sourceDir ? `${sourceDir}/${candidate}` : candidate));
+      }
+    }
+  }
+
+  for (const candidate of candidates) {
+    const file = this.app.vault.getAbstractFileByPath(normalizePath(candidate));
+    if (file instanceof TFile) return file;
+  }
+
+  const linked = this.app.metadataCache.getFirstLinkpathDest(decodedPath, sourcePath || '');
+  return linked instanceof TFile ? linked : null;
+}
+
+function stripObsidianLink(path: string): string {
+  const wikiLink = path.match(/^\[\[([^|\]]+)(?:\|[^\]]+)?\]\]$/);
+  if (wikiLink) return wikiLink[1].trim();
+
+  const markdownLink = path.match(/^\[[^\]]+\]\(([^)]+)\)$/);
+  if (markdownLink) return markdownLink[1].trim();
+
+  return path;
+}
+
+function decodePath(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }
 
 function createContainer(this: VerovioMusicRenderer, uid: string, parentEl: HTMLElement) {
@@ -360,10 +422,7 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
   }
   window.VerovioToolkit.setOptions({ ...sanitizeVerovioOptions(st.options), inputFrom: 'mei' });
   window.VerovioToolkit.loadData(st.meiData);
-  if (st.measureRange) {
-    window.VerovioToolkit.select({ measureRange: st.measureRange });
-    window.VerovioToolkit.redoLayout();
-  }
+  applyMeasureRange(st.measureRange);
   const svgStr = window.VerovioToolkit.renderToSVG(st.currentPage);
   const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
   wrapper.innerHTML = '';

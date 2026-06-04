@@ -2,11 +2,11 @@
 
 ![](screenshots/demo.gif)
 
-This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as MusicXML and PAE files, ABC, GABC and Volpiano) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC, CMME, GABC, Volpiano, MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
-- Rendering MEI, ABC, GABC, Volpiano, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
-- Converting selected ABC, GABC, Volpiano, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
+- Rendering MEI, ABC, CMME, GABC, Volpiano, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
+- Converting selected ABC, CMME, GABC, Volpiano, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
 - A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
@@ -152,6 +152,33 @@ COPY FROM HERE
 ```COPY UNTIL HERE
 ```
 
+and also CMME files
+
+```
+COPY FROM HERE
+```verovio
+Beati_omnes.cmme.xml
+```COPY UNTIL HERE
+```
+
+Inline CMME XML can be rendered with an explicit format prefix
+
+```
+COPY FROM HERE
+```verovio
+cmme:
+<Piece xmlns="http://www.cmme.org">
+  <GeneralData>
+    <Title>Beati omnes</Title>
+    <Composer>Anonymous</Composer>
+  </GeneralData>
+  <!-- full CMME XML continues here -->
+</Piece>
+```COPY UNTIL HERE
+```
+
+CMME files are passed to Verovio as `cmme.xml`; files ending in `.cmme.xml` or `.cmme` are recognized directly, and generic `.xml` files are checked for CMME structure after loading.
+
 and also GABC / Gregorian chant notation
 
 ```
@@ -187,7 +214,7 @@ COPY FROM HERE
 1---e--g--g---g--hj--h---h--gf7---e--f--g--f---e---4---h--g--h--j--g--h---3
 ```COPY UNTIL HERE
 ```
-‚
+
 Volpiano files can also be rendered from the vault when using a `.volpiano`, `.vol`, or `.vp` file extension.
 
 Note: Verovio imports Volpiano as regular MEI notes and produces playable MIDI. It does not currently preserve Volpiano neume grouping such as `gf` / `hgf` as grouped neumes, and line/page/column breaks such as `7` / `77` / `777` are not handled like in `music21.volpiano`.
@@ -218,7 +245,7 @@ breaks: encoded
 ```
 
 ## Rendering Measure Selections
-A special feature of this plugin is rendering predefined measures. To render measures 1-10, you can use the measureRange command like in this example. Please note that in this example, measure 20 is not included in the rendering. The type of breaks you choose to render can greatly influence the output (or even make the plugin render nothing at all). For example, "encoded" breaks can result in a blank rendering if no encoded break exists in your selection. Because of this, "breaks: none" is added to the example below, which might be a good default option for rendering musical snippets. You can also use "start" and "end" instead of numbers, e.g. `measureRange: 15-end` – or just render single measures: `measureRange: 5`
+A special feature of this plugin is rendering predefined measures. To render measures 1-10, you can use the measureRange command like in this example. Please note that in this example, measure 20 is not included in the rendering. The type of breaks you choose to render can greatly influence the output (or even make the plugin render nothing at all). For example, "encoded" breaks can result in a blank rendering if no encoded break exists in your selection. Because of this, "breaks: none" is added to the example below, which might be a good default option for rendering musical snippets. You can also use "start" and "end" instead of numbers, e.g. `measureRange: 15-end` – or just render single measures: `measureRange: 5`. This works for measure-based MEI after import, such as MEI, ABC and MusicXML. Formats imported without `<measure>` elements, such as GABC, Volpiano and many CMME/mensural files, cannot be trimmed with `measureRange`.
 
 
 ```

@@ -1,6 +1,6 @@
 // parseVerovioSource.ts
 
-export type VerovioFormat = 'mei' | 'abc' | 'gabc' | 'musicxml' | 'pae' | 'volpiano';
+export type VerovioFormat = 'mei' | 'abc' | 'cmme.xml' | 'gabc' | 'musicxml' | 'pae' | 'volpiano';
 export type VerovioOptionValue = string | number | boolean;
 export type VerovioOptions = Record<string, VerovioOptionValue>;
 
@@ -75,6 +75,14 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
       measureRange
     };
   }
+  if (firstLower === 'cmme:' || firstLower === 'cmme' || firstLower === 'cmme.xml:' || firstLower === 'cmme.xml') {
+    return {
+      format: 'cmme.xml',
+      code: codeLines.join('\n').replace(/^cmme(?:\.xml)?:\s*/i, '').trim(),
+      options,
+      measureRange
+    };
+  }
   if (firstLower === 'volpiano:' || firstLower === 'volpiano') {
     return {
       format: 'volpiano',
@@ -118,6 +126,9 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   if (/<score-partwise(?:\s|>)/i.test(inlineCode) || /<score-timewise(?:\s|>)/i.test(inlineCode)) {
     return { format: 'musicxml', code: inlineCode, options, measureRange };
   }
+  if (isCmmeInline(inlineCode)) {
+    return { format: 'cmme.xml', code: inlineCode, options, measureRange };
+  }
   if (/^X:\d+/i.test(nonEmpty[0] || '')) {
     return { format: 'abc', code: inlineCode, options, measureRange };
   }
@@ -131,13 +142,21 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   // 5) Datei-Modus (erste Zeile = Pfad)
   const filePath = nonEmpty.shift();
   let fileFormat: VerovioFormat = 'mei';
-  const ext = filePath?.split('.').pop()?.toLowerCase();
-  if (ext === 'xml' || ext === 'musicxml') fileFormat = 'musicxml';
+  const lowerPath = filePath?.toLowerCase() || '';
+  const ext = lowerPath.split('.').pop();
+  if (lowerPath.endsWith('.cmme.xml') || ext === 'cmme') fileFormat = 'cmme.xml';
+  else if (ext === 'xml' || ext === 'musicxml') fileFormat = 'musicxml';
   else if (ext === 'abc') fileFormat = 'abc';
   else if (ext === 'gabc') fileFormat = 'gabc';
   else if (ext === 'volpiano' || ext === 'vol' || ext === 'vp') fileFormat = 'volpiano';
   else if (ext === 'mei') fileFormat = 'mei';
   return { format: fileFormat, filePath, options, measureRange };
+}
+
+export function isCmmeInline(inlineCode: string): boolean {
+  if (!inlineCode.trim().startsWith('<')) return false;
+  return /<(?:Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)\b/i.test(inlineCode)
+    && /<(?:GeneralData|VoiceData|Section|Mensuration|Note)\b/i.test(inlineCode);
 }
 
 function isGabcInline(nonEmpty: string[], inlineCode: string): boolean {
