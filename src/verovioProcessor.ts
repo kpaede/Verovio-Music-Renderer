@@ -239,7 +239,8 @@ export async function processVerovioCodeBlocks(
       }
       loadInputFrom = 'mei';
     } else if (filePath) {
-      const fileData = await fetchMEIData(this, filePath, ctx.sourcePath);
+      const sourceData = await fetchMEIData(this, filePath, ctx.sourcePath);
+      const fileData = sourceData.text;
       if (format === 'gabc') {
         const gabc = prepareGabcInput(fileData);
         rawMEI = addGabcMetadataToMEI(
@@ -251,8 +252,9 @@ export async function processVerovioCodeBlocks(
         rawMEI = fileData;
         loadInputFrom = getInputFrom(format === 'musicxml' && isCmmeInline(fileData) ? 'cmme.xml' : format);
       }
-      // Fix: Mapping UID statt Source
-      sourceMap[uid] = filePath;
+      if (sourceData.vaultPath) {
+        sourceMap[uid] = sourceData.vaultPath;
+      }
     } else {
       throw new Error('Neither inline code nor file path provided.');
     }
@@ -297,31 +299,6 @@ export async function processVerovioCodeBlocks(
 
     const container = createContainer(this, uid, el);
 
-    // Editor-Öffnen
-    const svgWrapper = container.querySelector<HTMLElement>('.verovio-svg-wrapper');
-    svgWrapper?.addEventListener('click', (e: Event) => {
-      e.stopPropagation();
-      this.lastClickedUid = uid;
-      const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
-      if (leaves.length) void (leaves[0].view as MusicEditorView).openBlock(uid, '');
-    });
-
-    window.setTimeout(() => {
-      const svg = container.querySelector<SVGSVGElement>('svg');
-      if (!svg) return;
-      Object.keys(clickMap[uid]?.elementMap ?? {}).forEach(id => {
-        const node = svg.querySelector<SVGElement>(`#${id}`);
-        if (node) {
-          node.addEventListener('click', (ev: Event) => {
-            ev.stopPropagation();
-            this.lastClickedUid = uid;
-            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
-            if (leaves.length) void (leaves[0].view as MusicEditorView).openBlock(uid, id);
-          });
-        }
-      });
-    }, 100);
-
     return container;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -329,21 +306,34 @@ export async function processVerovioCodeBlocks(
   }
 }
 
+async function openMusicEditorForSource(plugin: VerovioMusicRenderer, uid: string, elementId: string) {
+  plugin.lastClickedUid = uid;
+  const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
+  const leaf = leaves.length ? leaves[0] : plugin.app.workspace.getRightLeaf(false);
+  if (!leaf) return;
+  await leaf.setViewState({ type: VIEW_TYPE_MUSIC_EDITOR, active: true });
+  await plugin.app.workspace.revealLeaf(leaf);
+  await (leaf.view as MusicEditorView).openSource(uid, elementId);
+}
+
 /**
  * Fetch MEI data from a file path (local vault) or external URL.
  * Network requests are triggered on-demand only when the user explicitly provides an external URL.
  * No automatic polling, periodic updates, or background data transmission occurs.
  */
-async function fetchMEIData(plugin: VerovioMusicRenderer, path: string, sourcePath?: string): Promise<string> {
+async function fetchMEIData(plugin: VerovioMusicRenderer, path: string, sourcePath?: string): Promise<{ text: string; vaultPath?: string }> {
   if (/^https?:\/\//.test(path)) {
     // On-demand fetch: Only triggered by explicit user code block rendering with external URL
     const res = await requestUrl({ url: path });
     if (res.status !== 200) throw new Error(`Failed to fetch ${path}: HTTP ${res.status}`);
-    return String(res.text);
+    return { text: String(res.text) };
   }
   const file = resolveVaultFile(plugin, path, sourcePath);
   if (!(file instanceof TFile)) throw new Error(`File not found: ${path}`);
-  return plugin.app.vault.read(file);
+  return {
+    text: await plugin.app.vault.read(file),
+    vaultPath: file.path,
+  };
 }
 
 function resolveVaultFile(plugin: VerovioMusicRenderer, path: string, sourcePath?: string): TFile | null {
@@ -406,6 +396,9 @@ function createContainer(plugin: VerovioMusicRenderer, uid: string, parentEl: HT
     title: instanceStateMap[uid]?.supportsPlayback ? 'Play' : 'Playback is not supported for gabc/neume notation in verovio.',
   }));
   toolbar.appendChild(createBtn('square', () => stopMIDI(uid)));
+  toolbar.appendChild(createBtn('pencil', () => { void openMusicEditorForSource(plugin, uid, ''); }, {
+    title: 'Open code editor',
+  }));
   toolbar.appendChild(createBtn('image-down', () => downloadSVG(uid)));
   toolbar.appendChild(createBtn('external-link', () => { openFileExternally.call(plugin, uid); }));
 
@@ -448,6 +441,27 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
       container.style.setProperty('--verovio-play-color', color);
     }
   } catch { /* ignore */ }
+}
+
+export function refreshRenderingsForSource(sourcePath: string, meiData: string) {
+  Object.entries(sourceMap)
+    .filter(([, path]) => path === sourcePath)
+    .forEach(([uid]) => {
+      const st = instanceStateMap[uid];
+      const wrapper = activeDocument.querySelector<HTMLElement>(
+        `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
+      );
+      if (!st || !wrapper) return;
+
+      st.meiData = meiData;
+      window.VerovioToolkit.setOptions({ ...sanitizeVerovioOptions(st.options), inputFrom: 'mei' });
+      window.VerovioToolkit.loadData(st.meiData);
+      applyMeasureRange(st.measureRange);
+      st.totalPages = window.VerovioToolkit.getPageCount();
+      st.currentPage = Math.min(Math.max(1, st.currentPage), Math.max(1, st.totalPages));
+      st.supportsPlayback = /<note\b/i.test(window.VerovioToolkit.getMEI());
+      updateSVG(uid, wrapper);
+    });
 }
 
 export function changePage(uid: string, delta: number) {

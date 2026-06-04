@@ -1,6 +1,6 @@
 import VerovioMusicRenderer from './main';
-import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
-import { clickMap } from './verovioProcessor';
+import { ButtonComponent, ItemView, Modal, Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import { clickMap, refreshRenderingsForSource, sourceMap } from './verovioProcessor';
 
 // CodeMirror 6
 import {
@@ -46,10 +46,12 @@ export class MusicEditorView extends ItemView {
   plugin: VerovioMusicRenderer;
   private currentEditor?: CMEditorView;
   private currentElementMap?: Record<string, ElementInfo>;
+  private editMode: 'block' | 'file' = 'block';
 
   // In-Memory-Snapshot der geladenen Datei
   private origLines: string[] = [];
   private file!: TFile;
+  private sourcePath?: string;
   private fileStartLine = 0;
   private fileEndLine = 0;
 
@@ -69,6 +71,38 @@ export class MusicEditorView extends ItemView {
   }
 
   onClose(): Promise<void> { return Promise.resolve(); }
+
+  public async openSource(uid: string, elementId: string): Promise<void> {
+    const path = sourceMap[uid];
+    const canEditBlock = Boolean(clickMap[uid]);
+    const canEditMeiFile = path?.toLowerCase().endsWith('.mei') ?? false;
+
+    if (canEditMeiFile && canEditBlock && path) {
+      new ChooseMeiEditTargetModal(
+        this.app,
+        path,
+        () => { void this.openFile(path); },
+        () => { void this.openBlock(uid, elementId); }
+      ).open();
+      return;
+    }
+
+    if (canEditMeiFile && path) {
+      new ChooseMeiEditTargetModal(
+        this.app,
+        path,
+        () => { void this.openFile(path); }
+      ).open();
+      return;
+    }
+
+    if (canEditBlock) {
+      await this.openBlock(uid, elementId);
+      return;
+    }
+
+    new Notice('Attachment not found.');
+  }
 
   /** Datei laden, Snapshot speichern, und Editor öffnen */
   public async openBlock(uid: string, elementId: string): Promise<void> {
@@ -90,12 +124,33 @@ export class MusicEditorView extends ItemView {
 
     this.origLines        = lines;
     this.file             = file;
+    this.sourcePath       = undefined;
     this.fileStartLine    = startLine;
     this.fileEndLine      = endLine;
+    this.editMode         = 'block';
     this.currentElementMap = elementMap;
 
     const blockText = lines.slice(startLine, endLine).join('\n');
     this.showEditor(blockText, elementId);
+  }
+
+  public async openFile(path: string): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) {
+      new Notice(`File not found.: ${path}`);
+      return;
+    }
+
+    const content = await this.app.vault.read(file);
+    this.origLines = content.split('\n');
+    this.file = file;
+    this.sourcePath = path;
+    this.fileStartLine = 0;
+    this.fileEndLine = this.origLines.length;
+    this.editMode = 'file';
+    this.currentElementMap = undefined;
+
+    this.showEditor(content, '');
   }
 
   /** Editor einrichten und debounced bei jeder Änderung speichern */
@@ -106,16 +161,28 @@ export class MusicEditorView extends ItemView {
     // Debounced-Save: tauscht nur den Block-Bereich aus
     const save = debounce(async () => {
       try {
-        const updated = this.currentEditor!.state.doc.toString().split('\n');
-        const before  = this.origLines.slice(0, this.fileStartLine);
-        const after   = this.origLines.slice(this.fileEndLine);
-        const merged  = [...before, ...updated, ...after];
+        const updatedText = this.currentEditor!.state.doc.toString();
+
+        if (this.editMode === 'file') {
+          await this.app.vault.modify(this.file, updatedText);
+          this.origLines = updatedText.split('\n');
+          this.fileEndLine = this.origLines.length;
+          if (this.sourcePath) {
+            refreshRenderingsForSource(this.sourcePath, updatedText);
+          }
+          return;
+        }
+
+        const updatedLines = updatedText.split('\n');
+        const before = this.origLines.slice(0, this.fileStartLine);
+        const after = this.origLines.slice(this.fileEndLine);
+        const merged = [...before, ...updatedLines, ...after];
         await this.app.vault.modify(this.file, merged.join('\n'));
-        this.origLines   = merged;
-        this.fileEndLine = this.fileStartLine + updated.length;
+        this.origLines = merged;
+        this.fileEndLine = this.fileStartLine + updatedLines.length;
       } catch (e) {
         console.error('Save failed.:', e);
-        new Notice('Saving in code block failed.');
+        new Notice(this.editMode === 'file' ? 'Saving MEI file failed.' : 'Saving in code block failed.');
       }
     }, 300);
 
@@ -159,5 +226,44 @@ export class MusicEditorView extends ItemView {
         });
       }
     }
+  }
+}
+
+class ChooseMeiEditTargetModal extends Modal {
+  constructor(
+    app: VerovioMusicRenderer['app'],
+    private readonly path: string,
+    private readonly onOpenFile: () => void,
+    private readonly onOpenBlock?: () => void
+  ) {
+    super(app);
+  }
+
+  onOpen() {
+    this.contentEl.empty();
+    this.contentEl.createEl('h2', { text: 'What do you want to edit?' });
+    this.contentEl.createEl('p', {
+      text: `This rendering links to ${this.path}.`
+    });
+
+    const buttonRow = this.contentEl.createDiv('verovio-confirm-buttons');
+    new ButtonComponent(buttonRow)
+      .setButtonText('Edit MEI file')
+      .setCta()
+      .onClick(() => {
+        this.close();
+        this.onOpenFile();
+      });
+    if (this.onOpenBlock) {
+      new ButtonComponent(buttonRow)
+        .setButtonText('Edit codeblock')
+        .onClick(() => {
+          this.close();
+          this.onOpenBlock?.();
+        });
+    }
+    new ButtonComponent(buttonRow)
+      .setButtonText('Cancel')
+      .onClick(() => this.close());
   }
 }

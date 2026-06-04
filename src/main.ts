@@ -45,7 +45,7 @@ export default class VerovioMusicRenderer extends Plugin {
         void leaf.setViewState({ type: VIEW_TYPE_MUSIC_EDITOR, active: true });
         void this.app.workspace.revealLeaf(leaf);
         if (this.lastClickedUid) {
-          void (leaf.view as MusicEditorView).openBlock(this.lastClickedUid, '');
+          void (leaf.view as MusicEditorView).openSource(this.lastClickedUid, '');
         }
       },
     });
