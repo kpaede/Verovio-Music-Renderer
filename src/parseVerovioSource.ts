@@ -1,6 +1,6 @@
 // parseVerovioSource.ts
 
-export type VerovioFormat = 'mei' | 'abc' | 'musicxml' | 'pae';
+export type VerovioFormat = 'mei' | 'abc' | 'gabc' | 'musicxml' | 'pae';
 export type VerovioOptionValue = string | number | boolean;
 export type VerovioOptions = Record<string, VerovioOptionValue>;
 
@@ -67,6 +67,14 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
       measureRange
     };
   }
+  if (firstLower === 'gabc:' || firstLower === 'gabc') {
+    return {
+      format: 'gabc',
+      code: codeLines.join('\n').replace(/^gabc:\s*/i, '').trim(),
+      options,
+      measureRange
+    };
+  }
   if (firstLower === 'musicxml:' || firstLower === 'musicxml') {
     return {
       format: 'musicxml',
@@ -105,6 +113,9 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   if (/^X:\d+/i.test(nonEmpty[0] || '')) {
     return { format: 'abc', code: inlineCode, options, measureRange };
   }
+  if (isGabcInline(nonEmpty, inlineCode)) {
+    return { format: 'gabc', code: inlineCode, options, measureRange };
+  }
 
   // 5) Datei-Modus (erste Zeile = Pfad)
   const filePath = nonEmpty.shift();
@@ -112,8 +123,21 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
   const ext = filePath?.split('.').pop()?.toLowerCase();
   if (ext === 'xml' || ext === 'musicxml') fileFormat = 'musicxml';
   else if (ext === 'abc') fileFormat = 'abc';
+  else if (ext === 'gabc') fileFormat = 'gabc';
   else if (ext === 'mei') fileFormat = 'mei';
   return { format: fileFormat, filePath, options, measureRange };
+}
+
+function isGabcInline(nonEmpty: string[], inlineCode: string): boolean {
+  if (!nonEmpty.length) return false;
+  if (!inlineCode.includes('%%')) return false;
+
+  const headerKeys = ['name', 'title', 'subtitle', 'annotation', 'office-part', 'mode'];
+  return nonEmpty.some((line) => {
+    const sepIndex = line.indexOf(':');
+    if (sepIndex <= 0) return false;
+    return headerKeys.includes(line.slice(0, sepIndex).trim().toLowerCase());
+  });
 }
 
 function parseValue(v: string): VerovioOptionValue {

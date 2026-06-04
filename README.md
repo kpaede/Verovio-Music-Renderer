@@ -2,11 +2,11 @@
 
 ![](screenshots/demo.gif)
 
-This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC,  MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as ABC, GABC, MusicXML and PAE files) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
-- Rendering MEI, ABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
-- Converting selected ABC, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
+- Rendering MEI, ABC, GABC, MusicXML, PAE notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
+- Converting selected ABC, GABC, MusicXML, or PAE code to MEI via the Obsidian Command Palette.
 - A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
@@ -149,6 +149,31 @@ COPY FROM HERE
 @keysig:
 @timesig:c
 @data:2''C'B/=/''CC/=/2-4DE/2-8{'B''C+C'B}/2''C-//
+```COPY UNTIL HERE
+```
+
+and also GABC / Gregorian chant notation
+
+```
+COPY FROM HERE
+```verovio
+supertitle:;
+title: Alleluia
+subtitle: Mode VI
+text-left:;
+text-right:;
+annotation:VI;
+%%
+(c4) Al(f)le(g)lu(h)ia,(f) (,) al(gh)le(g)lu(f)ia,(d.c.) (,) al(f)le(gh)lu(gf)ia(f.) (::)
+```COPY UNTIL HERE
+```
+
+or from a GABC file in your vault
+
+```
+COPY FROM HERE
+```verovio
+al--adducentur--vatican.gabc
 ```COPY UNTIL HERE
 ```
 

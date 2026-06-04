@@ -21,6 +21,15 @@ export const instanceStateMap: Record<string, VerovioState> = {};
 /** Element-Info: Zeile (relativ inizial) und Parse-Index nur für Noten */
 interface ElementInfo { line: number; index: number; }
 
+interface GabcMetadata {
+  title?: string;
+  subtitle?: string;
+  name?: string;
+  annotation?: string;
+  commentary?: string;
+  userNotes?: string;
+}
+
 /** Mapping UID → Datei & Zeilen für den Block-Editor */
 export interface BlockMapping {
   filePath: string;
@@ -61,6 +70,96 @@ function convertInlineCodeToMEI(code: string, format: VerovioFormat): string {
   const mei = window.VerovioToolkit.getMEI();
   if (!mei.trim()) throw new Error(`Failed to convert ${format} input to MEI.`);
   return mei;
+}
+
+function prepareGabcInput(code: string): { body: string; metadata: GabcMetadata; syllables: string[] } {
+  const rawLines = code.replace(/\r\n?/g, '\n').split('\n');
+  const separatorIndex = rawLines.findIndex((line) => line.trim() === '%%');
+  const headerLines = separatorIndex >= 0 ? rawLines.slice(0, separatorIndex) : [];
+  const bodyLines = separatorIndex >= 0 ? rawLines.slice(separatorIndex + 1) : rawLines;
+  const body = bodyLines.join('\n').trim();
+
+  return {
+    body,
+    metadata: parseGabcMetadata(headerLines),
+    syllables: extractGabcSyllables(body),
+  };
+}
+
+function parseGabcMetadata(lines: string[]): GabcMetadata {
+  const metadata: GabcMetadata = {};
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('%')) return;
+    const sepIndex = trimmed.indexOf(':');
+    if (sepIndex <= 0) return;
+
+    const key = trimmed.slice(0, sepIndex).trim().toLowerCase();
+    const value = trimmed.slice(sepIndex + 1).trim().replace(/;$/, '').trim();
+    if (!value) return;
+
+    if (key === 'title') metadata.title = value;
+    else if (key === 'subtitle') metadata.subtitle = value;
+    else if (key === 'name') metadata.name = value;
+    else if (key === 'annotation') metadata.annotation = value;
+    else if (key === 'commentary') metadata.commentary = value;
+    else if (key === 'user-notes') metadata.userNotes = value;
+  });
+  return metadata;
+}
+
+function extractGabcSyllables(body: string): string[] {
+  const syllables: string[] = [];
+  let text = '';
+  let inNotation = false;
+
+  for (const char of body) {
+    if (char === '(') {
+      addGabcSyllable(syllables, text);
+      text = '';
+      inNotation = true;
+    } else if (char === ')') {
+      inNotation = false;
+    } else if (!inNotation) {
+      text += char;
+    }
+  }
+  addGabcSyllable(syllables, text);
+  return syllables;
+}
+
+function addGabcSyllable(syllables: string[], text: string) {
+  const syllable = text.replace(/\s+/g, ' ').trim();
+  if (syllable) syllables.push(syllable);
+}
+
+function fixGabcMeiSyllables(mei: string, syllables: string[]): string {
+  let index = 0;
+  return mei.replace(/<syl\b([^>]*)>([\s\S]*?)<\/syl>/g, (full, attrs: string, content: string) => {
+    const source = syllables[index++];
+    if (!source || !content.includes('�')) return full;
+    return `<syl${attrs}>${escapeXml(source)}</syl>`;
+  });
+}
+
+function addGabcMetadataToMEI(mei: string, metadata: GabcMetadata): string {
+  const title = metadata.title || metadata.name;
+  const subtitle = metadata.subtitle || metadata.commentary || metadata.userNotes;
+  if (!title && !subtitle) return mei;
+
+  const titles = [
+    title ? `<title>${escapeXml(title)}</title>` : '',
+    subtitle ? `<title type="subtitle">${escapeXml(subtitle)}</title>` : '',
+  ].filter(Boolean).join('\n            ');
+
+  return mei.replace(/<titleStmt>\s*<title\s*\/>\s*<\/titleStmt>/, `<titleStmt>\n            ${titles}\n         </titleStmt>`);
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 /**
@@ -111,11 +210,29 @@ export async function processVerovioCodeBlocks(
     let rawMEI: string;
     let loadInputFrom = 'mei';
     if (workingCode) {
-      rawMEI = convertInlineCodeToMEI(workingCode, format);
+      if (format === 'gabc') {
+        const gabc = prepareGabcInput(workingCode);
+        rawMEI = addGabcMetadataToMEI(
+          fixGabcMeiSyllables(convertInlineCodeToMEI(gabc.body, format), gabc.syllables),
+          gabc.metadata
+        );
+      } else {
+        rawMEI = convertInlineCodeToMEI(workingCode, format);
+      }
       loadInputFrom = 'mei';
     } else if (filePath) {
-      rawMEI = await fetchMEIData.call(this, filePath);
-      loadInputFrom = getInputFrom(format);
+      const fileData = await fetchMEIData.call(this, filePath);
+      if (format === 'gabc') {
+        const gabc = prepareGabcInput(fileData);
+        rawMEI = addGabcMetadataToMEI(
+          fixGabcMeiSyllables(convertInlineCodeToMEI(gabc.body, format), gabc.syllables),
+          gabc.metadata
+        );
+        loadInputFrom = 'mei';
+      } else {
+        rawMEI = fileData;
+        loadInputFrom = getInputFrom(format);
+      }
       // Fix: Mapping UID statt Source
       sourceMap[uid] = filePath;
     } else {
