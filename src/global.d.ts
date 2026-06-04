@@ -8,6 +8,8 @@ declare interface VerovioToolkit {
   renderToTimemap(opts?: VerovioOptions): VerovioTimemap;
   getMEI(): string;
   getPageCount(): number;
+  getVersion?(): string;
+  destroy?(): void;
   getElementsAtTime(ms: number): VerovioElementsAtTime;
   renderData(data: string, options?: VerovioOptions): string;
   validatePAE?(data: string): VerovioValidation;

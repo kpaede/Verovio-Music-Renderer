@@ -1,16 +1,19 @@
-import * as verovio from 'verovio';
+import createVerovioModule from 'verovio/wasm';
+import { VerovioToolkit } from 'verovio/esm';
+
+function hasCurrentVerovioToolkit(): boolean {
+  const version = window.VerovioToolkit?.getVersion?.();
+  return typeof version === 'string' && /^6\./.test(version);
+}
 
 export async function loadVerovio() {
-  if (window.VerovioToolkit) return;
+  if (hasCurrentVerovioToolkit()) return;
 
-  return new Promise<void>((resolve, reject) => {
-    verovio.module.onRuntimeInitialized = () => {
-      try {
-        window.VerovioToolkit = new verovio.toolkit();
-        resolve();
-      } catch {
-        reject(new Error("Verovio toolkit not correctly loaded."));
-      }
-    };
-  });
+  try {
+    window.VerovioToolkit?.destroy?.();
+    const verovioModule = await createVerovioModule();
+    window.VerovioToolkit = new VerovioToolkit(verovioModule);
+  } catch {
+    throw new Error("Verovio toolkit not correctly loaded.");
+  }
 }

@@ -1,11 +1,23 @@
-declare module 'verovio' {
-  interface VerovioModule {
-    module: {
-      onRuntimeInitialized: () => void;
-    };
-    toolkit: new () => VerovioToolkit;
-  }
+declare module 'verovio/wasm' {
+  export default function createVerovioModule(): Promise<unknown>;
+}
 
-  const verovio: VerovioModule;
-  export = verovio;
+declare module 'verovio/esm' {
+  export class VerovioToolkit {
+    constructor(module: unknown);
+    setOptions(options: VerovioOptions): void;
+    loadData(data: string): void;
+    redoLayout(): void;
+    select(opts: VerovioOptions): void;
+    renderToSVG(page?: number): string;
+    renderToMIDI(): string | null;
+    renderToTimemap(opts?: VerovioOptions): VerovioTimemap;
+    getMEI(): string;
+    getPageCount(): number;
+    getVersion(): string;
+    destroy(): void;
+    getElementsAtTime(ms: number): VerovioElementsAtTime;
+    renderData(data: string, options?: VerovioOptions): string;
+    validatePAE?(data: string): VerovioValidation;
+  }
 }
