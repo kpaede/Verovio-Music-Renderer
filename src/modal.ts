@@ -323,8 +323,10 @@ export class VerovioModal extends Modal {
       switch (octave) {
         case 3:
           pitchString += "'";
+          // fallthrough
         case 2:
           pitchString += "'";
+          // fallthrough
         case 1:
           pitchString += "'";
       }
