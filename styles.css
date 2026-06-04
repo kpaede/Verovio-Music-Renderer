@@ -138,9 +138,20 @@
   height: 18px;
 }
 
+.verovio-editor-tab-image {
+  width: 19px;
+  height: 19px;
+  object-fit: contain;
+}
+
 .verovio-editor-tab-button.is-active {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
+}
+
+.verovio-editor-tab-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .verovio-editor-tab-body {
@@ -183,6 +194,11 @@
 
 .verovio-editor-wrapper .cm-editor {
   height: 100%;
+}
+
+.verovio-editor-wrapper .verovio-editor-marked-xml-line {
+  background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--interactive-accent) 38%, transparent);
 }
 
 .verovio-editor-placeholder {

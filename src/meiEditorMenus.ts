@@ -44,31 +44,6 @@ export const MANIPULATE_MENU: MeiEditorMenuSection[] = [
       { id: 'toggleDots', label: 'Toggle dotted note', shortcut: '.' },
     ],
   },
-  {
-    items: [
-      { id: 'cleanAccid', label: 'Check @accid.ges', shortcut: 'Ctrl Shift C' },
-      { id: 'meterConformance', label: 'Check @metcon' },
-      { id: 'renumberMeasuresTest', label: 'Renumber measures (test)' },
-      { id: 'renumberMeasuresExec', label: 'Renumber measures (exec)', shortcut: 'Cmd Shift R' },
-    ],
-  },
-  {
-    items: [
-      { id: 'addIds', label: 'Add ids to MEI', shortcut: 'Cmd M' },
-      { id: 'removeIds', label: 'Remove ids from MEI', shortcut: 'Cmd Shift M' },
-    ],
-  },
-  {
-    items: [
-      { id: 'reRenderMeiVerovio', label: 'Rerender via Verovio' },
-    ],
-  },
-  {
-    items: [
-      { id: 'addFacsimile', label: 'Add facsimile element' },
-      { id: 'ingestFacsimile', label: 'Ingest facsimile', shortcut: 'Cmd I' },
-    ],
-  },
 ];
 
 export const INSERT_MENU: MeiEditorMenuSection[] = [
@@ -138,3 +113,62 @@ export const INSERT_MENU: MeiEditorMenuSection[] = [
     ],
   },
 ];
+
+export function findMenuItemByKeyboardEvent(event: KeyboardEvent): MeiEditorMenuItem | undefined {
+  return [...MANIPULATE_MENU, ...INSERT_MENU]
+    .flatMap((section) => section.items)
+    .find((item) => item.shortcut && shortcutMatchesEvent(item.shortcut, event));
+}
+
+function shortcutMatchesEvent(shortcut: string, event: KeyboardEvent): boolean {
+  if (shortcut === 'Backspace / Del') return !hasAnyModifier(event) && (event.key === 'Backspace' || event.key === 'Delete');
+
+  const parts = shortcut.split(/\s+/);
+  const key = parts.at(-1);
+  if (!key) return false;
+
+  const wantsShift = parts.includes('Shift');
+  const wantsAlt = parts.includes('Alt');
+  const wantsCtrl = parts.includes('Ctrl');
+  const wantsCmd = parts.includes('Cmd');
+
+  if (event.shiftKey !== wantsShift) return false;
+  if (event.altKey !== wantsAlt) return false;
+  if (event.ctrlKey !== wantsCtrl) return false;
+  if (event.metaKey !== wantsCmd) return false;
+
+  return possibleEventKeys(event).has(normalizeKey(key));
+}
+
+function hasAnyModifier(event: KeyboardEvent): boolean {
+  return event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
+}
+
+function normalizeKey(key: string): string {
+  const aliases: Record<string, string> = {
+    up: 'arrowup',
+    down: 'arrowdown',
+    left: 'arrowleft',
+    right: 'arrowright',
+    del: 'delete',
+    add: '+',
+    equal: '=',
+    minus: '-',
+  };
+  const normalized = key.toLowerCase();
+  return aliases[normalized] ?? normalized;
+}
+
+function possibleEventKeys(event: KeyboardEvent): Set<string> {
+  const keys = new Set<string>([normalizeKey(event.key)]);
+  if (/^key[a-z]$/i.test(event.code)) keys.add(event.code.slice(3).toLowerCase());
+  if (event.code === 'Equal') keys.add('=');
+  if (event.code === 'Minus') keys.add('-');
+  if (event.code === 'NumpadAdd') keys.add('+');
+  if (event.code === 'NumpadSubtract') keys.add('-');
+
+  if (event.key === '+') keys.add('=');
+  if (event.key === '*') keys.add('+');
+
+  return keys;
+}

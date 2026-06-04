@@ -165,6 +165,9 @@ const context = await esbuild.context({
 	target: "es2018",
 	logLevel: "info",
 	minify: prod,
+	loader: {
+		".png": "dataurl",
+	},
 	plugins: [patchLzMidiPlugin],
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,

@@ -1,5 +1,5 @@
 import { Editor, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
-import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioOptions } from './verovioProcessor';
+import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioOptions, handleVerovioNotationShortcut, handleVerovioGlobalPointerDown } from './verovioProcessor';
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
 import { loadVerovio } from './verovioLoader';
 import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
@@ -20,6 +20,18 @@ export default class VerovioMusicRenderer extends Plugin {
     await this.loadVerovioSafely();
     await this.loadSettings();
     this.addSettingTab(new VerovioSettingTab(this.app, this));
+    this.registerDomEvent(
+      this.app.workspace.containerEl.ownerDocument,
+      'keydown',
+      (event) => handleVerovioNotationShortcut(this, event),
+      { capture: true }
+    );
+    this.registerDomEvent(
+      this.app.workspace.containerEl.ownerDocument,
+      'pointerdown',
+      (event) => handleVerovioGlobalPointerDown(this, event),
+      { capture: true }
+    );
 
     this.registerMarkdownCodeBlockProcessor(
       'verovio',
