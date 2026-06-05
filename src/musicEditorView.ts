@@ -591,8 +591,8 @@ export class MusicEditorView extends ItemView {
     const body = this.contentEl.createDiv('verovio-editor-tab-body');
 
     const remotePane = body.createDiv('verovio-editor-tab-pane');
-    remotePane.createEl('h2', { text: 'External URL content' });
-    remotePane.createEl('p', { text: 'This rendering comes from an external URL. The fetched MEI is shown read-only.' });
+    remotePane.createEl('h2', { text: 'External url content' });
+    remotePane.createEl('p', { text: 'This rendering comes from an external url. The fetched MEI is shown read-only.' });
     const remoteWrapper = remotePane.createDiv('verovio-editor-wrapper');
 
     const blockPane = body.createDiv('verovio-editor-tab-pane');
@@ -1194,45 +1194,6 @@ export class MusicEditorView extends ItemView {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-class ChooseMeiEditTargetModal extends Modal {
-  constructor(
-    app: VerovioMusicRenderer['app'],
-    private readonly path: string,
-    private readonly onOpenFile: () => void,
-    private readonly onOpenBlock?: () => void
-  ) {
-    super(app);
-  }
-
-  onOpen() {
-    this.contentEl.empty();
-    this.contentEl.createEl('h2', { text: 'What do you want to edit?' });
-    this.contentEl.createEl('p', {
-      text: `This rendering links to ${this.path}.`
-    });
-
-    const buttonRow = this.contentEl.createDiv('verovio-confirm-buttons');
-    new ButtonComponent(buttonRow)
-      .setButtonText('Edit MEI file')
-      .setCta()
-      .onClick(() => {
-        this.close();
-        this.onOpenFile();
-      });
-    if (this.onOpenBlock) {
-      new ButtonComponent(buttonRow)
-        .setButtonText('Edit codeblock')
-        .onClick(() => {
-          this.close();
-          this.onOpenBlock?.();
-        });
-    }
-    new ButtonComponent(buttonRow)
-      .setButtonText('Cancel')
-      .onClick(() => this.close());
-  }
 }
 
 function confirmConvertToMei(app: VerovioMusicRenderer['app'], format: string): Promise<boolean> {

@@ -170,9 +170,9 @@ export class VerovioSettingTab extends PluginSettingTab {
     checkboxWrapper.appendChild(input);
     checkboxWrapper.createSpan({ cls: 'verovio-rendering-option-checkbox-box' });
     input.checked = Boolean(this.plugin.settings[key]);
-    input.addEventListener('change', async () => {
+    input.addEventListener('change', () => {
       this.plugin.settings[key] = input.checked;
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
   }
 

@@ -173,7 +173,7 @@ async function applyShortcutCommandToSource(plugin: VerovioMusicRenderer, uid: s
   const blockRange = resolveCodeBlockRange(lines, mapping.startLine, mapping.endLine);
   const blockText = blockRange.text;
   if (isExternalReferenceBlockText(blockText)) {
-    new Notice('External URL content is read-only.');
+    new Notice('External url content is read-only.');
     return;
   }
   if (!isEditableMeiBlockText(blockText)) {
@@ -704,7 +704,7 @@ function attachNotationDragSelector(uid: string, wrapper: HTMLElement) {
     event.stopPropagation();
 
     if (!selectionRect) {
-      selectionRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      selectionRect = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
       selectionRect.setAttribute('class', 'verovio-drag-selection-rect no-invert');
       pageMargin.appendChild(selectionRect);
     }

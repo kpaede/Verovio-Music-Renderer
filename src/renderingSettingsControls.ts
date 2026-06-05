@@ -132,7 +132,7 @@ export function renderVerovioRenderingSettings(options: RenderingSettingsOptions
     const group = availableOptions.groups[groupKey];
     if (SETTINGS_SKIP_GROUPS.has(group.name)) return;
     const optionEntries = Object.entries(group.options)
-      .filter(([key, definition]) => shouldShowRenderingOption(key, definition as RenderingOptionDefinition));
+      .filter(([key, definition]) => shouldShowRenderingOption(key, definition));
     if (!optionEntries.length) return;
 
     const details = parent.createEl('details', { cls: 'verovio-rendering-settings-group' });
@@ -141,8 +141,7 @@ export function renderVerovioRenderingSettings(options: RenderingSettingsOptions
     openedGroupCount++;
     details.createEl('summary', { text: group.name });
 
-    optionEntries.forEach(([key, rawDefinition]) => {
-      const definition = rawDefinition as RenderingOptionDefinition;
+    optionEntries.forEach(([key, definition]) => {
       const currentValue = options.values[key] ?? options.fallbackValues[key] ?? definition.default ?? '';
       const input = createRenderingOptionInput(details, key, definition, currentValue, options.fallbackValues[key] ?? definition.default, options.onChange);
       if (input) optionInputs.push({ key, definition, input });
@@ -262,7 +261,7 @@ function createMeasureRangeSettingsGroup(parent: HTMLElement, options: Rendering
   const input = item.createEl('input', {
     type: 'text',
     value: String(options.values.measureRange ?? ''),
-    attr: { id: 'verovio-rendering-option-measureRange', placeholder: 'e.g. 1-20' },
+    attr: { id: 'verovio-rendering-option-measureRange', placeholder: 'E.g. 1-20' },
   });
   attachTooltip(input, tooltip);
   input.addEventListener('change', () => {
