@@ -2,6 +2,7 @@ import VerovioMusicRenderer from './main';
 import { ButtonComponent, ItemView, Modal, Notice, setIcon, TFile, WorkspaceLeaf } from 'obsidian';
 import { clickMap, instanceStateMap, refreshRenderingsForSource, selectRenderedNotationElement, sourceMap, updateSVG } from './verovioProcessor';
 import parseVerovioSource from './parseVerovioSource';
+import type { VerovioOptionValue } from './parseVerovioSource';
 
 // CodeMirror 6
 import {
@@ -22,20 +23,21 @@ import { closeSearchPanel, openSearchPanel, search, searchKeymap, searchPanelOpe
 import { createMeiEditorDropdownMenu } from './meiEditorDropdownMenus';
 import { applyMeiEditorCommand } from './meiEditorOperations';
 import { extractCodeBlockBody, replaceCodeBlockBody, resolveCodeBlockRange } from './codeBlockRange';
-import meiLogoUrl from './meilogo.png';
+import { renderVerovioRenderingSettings, type RenderingSettingValue } from './renderingSettingsControls';
+import { DEFAULT_SETTINGS } from './settings';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
-type CombinedEditorTab = 'file' | 'block' | 'remote' | 'edit' | 'insert' | 'convert' | 'search';
-type SingleEditorTab = 'source' | 'block' | 'edit' | 'insert' | 'convert' | 'search';
+type CombinedEditorTab = 'file' | 'block' | 'remote' | 'edit' | 'insert' | 'convert' | 'search' | 'settings';
+type SingleEditorTab = 'source' | 'block' | 'edit' | 'insert' | 'convert' | 'search' | 'settings';
 
 const EDITOR_TOOLBAR_ITEMS: Array<{ tab: SingleEditorTab; icon: string; label: string }> = [
-  { tab: 'source', icon: 'pencil', label: 'Referenced content' },
+  { tab: 'source', icon: 'list-music', label: 'Referenced content' },
   { tab: 'block', icon: 'code-2', label: 'Codeblock' },
   { tab: 'edit', icon: 'square-pen', label: 'Edit' },
   { tab: 'insert', icon: 'plus', label: 'Insert' },
-  { tab: 'convert', icon: meiLogoUrl, label: 'Convert to MEI' },
-  { tab: 'search', icon: 'search', label: 'Search' },
+  { tab: 'convert', icon: 'mei-text', label: 'Convert to MEI' },
+  { tab: 'settings', icon: 'sliders-horizontal', label: 'Rendering settings' },
 ];
 
 /** Debounce-Helfer: führt fn frühestens wait ms nach letztem Aufruf aus */
@@ -48,8 +50,8 @@ function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): 
 }
 
 function setToolbarIcon(button: HTMLElement, icon: string) {
-  if (icon.startsWith('data:image/')) {
-    button.createEl('img', { cls: 'verovio-editor-tab-image', attr: { src: icon, alt: '' } });
+  if (icon === 'mei-text') {
+    button.createSpan({ cls: 'verovio-editor-tab-text-icon', text: 'MEI' });
     return;
   }
   setIcon(button, icon);
@@ -86,6 +88,66 @@ function splitNotationAndOptions(body: string): { notation: string; optionsText:
     notation: lines.slice(0, end).join('\n').trim(),
     optionsText: lines.slice(end).join('\n').trim(),
   };
+}
+
+function optionLineKey(line: string): string | undefined {
+  const match = line.trim().match(/^([a-z]\w*)\s*:\s*.+$/);
+  return match?.[1];
+}
+
+function getCodeBlockBodyOptionsText(body: string): string {
+  return splitNotationAndOptions(body).optionsText;
+}
+
+function formatOptionValue(value: VerovioOptionValue | VerovioOptionValue[]): string {
+  if (Array.isArray(value)) return value.join(',');
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  return String(value);
+}
+
+function updateOptionInBody(body: string, key: string, value: VerovioOptionValue | undefined): string {
+  const { notation, optionsText } = splitNotationAndOptions(body);
+  const optionLines = optionsText
+    ? optionsText.split('\n').filter((line) => optionLineKey(line) !== key)
+    : [];
+
+  if (value !== undefined && value !== null && value !== '') {
+    optionLines.push(`${key}: ${formatOptionValue(value)}`);
+  }
+
+  return optionLines.length
+    ? `${notation}\n${optionLines.join('\n')}`
+    : notation;
+}
+
+function removeOptionsFromBody(body: string, keys: Set<string>): string {
+  const { notation, optionsText } = splitNotationAndOptions(body);
+  if (!optionsText) return notation;
+  const optionLines = optionsText
+    .split('\n')
+    .filter((line) => {
+      const key = optionLineKey(line);
+      return !key || !keys.has(key);
+    });
+  return optionLines.length ? `${notation}\n${optionLines.join('\n')}` : notation;
+}
+
+function parseOptionText(optionsText: string): Record<string, VerovioOptionValue> {
+  const parsed: Record<string, VerovioOptionValue> = {};
+  optionsText.split('\n').forEach((line) => {
+    const key = optionLineKey(line);
+    if (!key) return;
+    const sepIndex = line.indexOf(':');
+    parsed[key] = parseOptionValue(line.slice(sepIndex + 1).trim());
+  });
+  return parsed;
+}
+
+function parseOptionValue(value: string): VerovioOptionValue {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  const numberValue = Number(value);
+  return Number.isNaN(numberValue) ? value : numberValue;
 }
 
 function collectXmlIds(value: string): string[] {
@@ -372,6 +434,7 @@ export class MusicEditorView extends ItemView {
     const blockPane = body.createDiv('verovio-editor-tab-pane');
     blockPane.createEl('h2', { text: this.editMode === 'file' ? `Referenced file: ${this.file.name}` : 'Codeblock' });
     const editorWrapper = blockPane.createDiv('verovio-editor-wrapper');
+    const settingsPane = body.createDiv('verovio-editor-tab-pane');
     const dropdown = createMeiEditorDropdownMenu(this.contentEl, {
       getSelectedCount: () => this.currentUid ? instanceStateMap[this.currentUid]?.selectedElementIds.length ?? 0 : 0,
       runCommand: (commandId) => this.runMeiEditorCommand(commandId),
@@ -388,6 +451,7 @@ export class MusicEditorView extends ItemView {
       disabledTabs.add('insert');
     }
     if (!canConvertInline) disabledTabs.add('convert');
+    if (this.editMode === 'file') disabledTabs.add('settings');
     const buttons: Partial<Record<SingleEditorTab, HTMLButtonElement>> = {};
     const activateTab = (tab: SingleEditorTab) => {
       if (disabledTabs.has(tab)) return;
@@ -403,6 +467,18 @@ export class MusicEditorView extends ItemView {
         else openSearchPanel(this.currentEditor);
         return;
       }
+      if (tab === 'settings') {
+        dropdown.close();
+        blockPane.toggleClass('is-active', false);
+        settingsPane.toggleClass('is-active', true);
+        Object.entries(buttons).forEach(([key, button]) => {
+          const isActive = key === tab;
+          button.toggleClass('is-active', isActive);
+          button.setAttribute('aria-selected', String(isActive));
+        });
+        this.renderRenderingSettings(settingsPane);
+        return;
+      }
       if (tab === 'edit' || tab === 'insert') {
         const anchor = buttons[tab];
         if (anchor) dropdown.toggle(tab === 'edit' ? 'manipulate' : 'insert', anchor);
@@ -410,12 +486,14 @@ export class MusicEditorView extends ItemView {
       }
       dropdown.close();
       blockPane.toggleClass('is-active', true);
+      settingsPane.toggleClass('is-active', false);
       Object.entries(buttons).forEach(([key, button]) => {
         const isActive = key === tab || (tab === activeSourceTab && key === activeSourceTab);
         button.toggleClass('is-active', isActive);
         button.setAttribute('aria-selected', String(isActive));
       });
       this.currentEditor?.requestMeasure();
+      this.ensureSearchPanelOpen(this.currentEditor);
     };
 
     const addToolButton = (tab: SingleEditorTab, icon: string, label: string) => {
@@ -520,6 +598,7 @@ export class MusicEditorView extends ItemView {
     const blockPane = body.createDiv('verovio-editor-tab-pane');
     blockPane.createEl('h2', { text: 'Codeblock' });
     const blockWrapper = blockPane.createDiv('verovio-editor-wrapper');
+    const settingsPane = body.createDiv('verovio-editor-tab-pane');
 
     const dropdown = createMeiEditorDropdownMenu(this.contentEl, {
       getSelectedCount: () => this.currentUid ? instanceStateMap[this.currentUid]?.selectedElementIds.length ?? 0 : 0,
@@ -534,6 +613,7 @@ export class MusicEditorView extends ItemView {
 
     const activateTab = (tab: SingleEditorTab) => {
       if (tab === 'search') {
+        dropdown.close();
         const editor = this.activeCombinedTab === 'block' ? this.currentBlockEditor : this.currentFileEditor;
         if (editor) {
           editor.requestMeasure();
@@ -542,8 +622,21 @@ export class MusicEditorView extends ItemView {
         }
         return;
       }
+      if (tab === 'settings') {
+        dropdown.close();
+        Object.values(panes).forEach((pane) => pane.toggleClass('is-active', false));
+        settingsPane.toggleClass('is-active', true);
+        Object.entries(buttons).forEach(([key, button]) => {
+          const isActive = key === tab;
+          button.toggleClass('is-active', isActive);
+          button.setAttribute('aria-selected', String(isActive));
+        });
+        this.renderRenderingSettings(settingsPane);
+        return;
+      }
       if (tab === 'edit' || tab === 'insert' || tab === 'convert') return;
       dropdown.close();
+      settingsPane.toggleClass('is-active', false);
       this.activeCombinedTab = tab === 'block' ? 'block' : 'remote';
       Object.entries(panes).forEach(([key, pane]) => pane.toggleClass('is-active', key === this.activeCombinedTab));
       Object.entries(buttons).forEach(([key, button]) => {
@@ -551,7 +644,9 @@ export class MusicEditorView extends ItemView {
         button.toggleClass('is-active', isActive);
         button.setAttribute('aria-selected', String(isActive));
       });
-      (this.activeCombinedTab === 'block' ? this.currentBlockEditor : this.currentFileEditor)?.requestMeasure();
+      const activeEditor = this.activeCombinedTab === 'block' ? this.currentBlockEditor : this.currentFileEditor;
+      activeEditor?.requestMeasure();
+      this.ensureSearchPanelOpen(activeEditor);
     };
 
     EDITOR_TOOLBAR_ITEMS.forEach(({ tab, icon, label }) => {
@@ -653,6 +748,7 @@ export class MusicEditorView extends ItemView {
     const blockPane = body.createDiv('verovio-editor-tab-pane');
     blockPane.createEl('h2', { text: 'Codeblock' });
     const blockWrapper = blockPane.createDiv('verovio-editor-wrapper');
+    const settingsPane = body.createDiv('verovio-editor-tab-pane');
 
     const dropdown = createMeiEditorDropdownMenu(this.contentEl, {
       getSelectedCount: () => this.currentUid ? instanceStateMap[this.currentUid]?.selectedElementIds.length ?? 0 : 0,
@@ -667,12 +763,25 @@ export class MusicEditorView extends ItemView {
 
     const activateTab = (tab: CombinedEditorTab) => {
       if (tab === 'search') {
+        dropdown.close();
         const editor = this.activeCombinedTab === 'block' ? this.currentBlockEditor : this.currentFileEditor;
         if (editor) {
           editor.requestMeasure();
           if (searchPanelOpen(editor.state)) closeSearchPanel(editor);
           else openSearchPanel(editor);
         }
+        return;
+      }
+      if (tab === 'settings') {
+        dropdown.close();
+        Object.values(panes).forEach((pane) => pane.toggleClass('is-active', false));
+        settingsPane.toggleClass('is-active', true);
+        Object.entries(buttons).forEach(([key, button]) => {
+          const isActive = key === tab;
+          button.toggleClass('is-active', isActive);
+          button.setAttribute('aria-selected', String(isActive));
+        });
+        this.renderRenderingSettings(settingsPane);
         return;
       }
       if (tab === 'edit' || tab === 'insert') {
@@ -688,6 +797,7 @@ export class MusicEditorView extends ItemView {
       if (tab === 'convert') return;
 
       dropdown.close();
+      settingsPane.toggleClass('is-active', false);
       this.activeCombinedTab = tab;
       Object.entries(panes).forEach(([key, pane]) => {
         pane.toggleClass('is-active', key === tab);
@@ -712,6 +822,7 @@ export class MusicEditorView extends ItemView {
       const editor = tab === 'block' ? this.currentBlockEditor : this.currentFileEditor;
       if (editor && (tab === 'file' || tab === 'block')) {
         editor.requestMeasure();
+        this.ensureSearchPanelOpen(editor);
       }
     };
 
@@ -921,6 +1032,89 @@ export class MusicEditorView extends ItemView {
     button.setAttribute('aria-disabled', String(disabled));
   }
 
+  private ensureSearchPanelOpen(editor?: CMEditorView) {
+    if (editor && !searchPanelOpen(editor.state)) openSearchPanel(editor);
+  }
+
+  private renderRenderingSettings(parent: HTMLElement) {
+    if (this.editMode === 'file' || !this.currentUid || !clickMap[this.currentUid]) {
+      parent.empty();
+      parent.createEl('p', {
+        cls: 'verovio-editor-placeholder',
+        text: 'Rendering settings can be written only when the current rendering comes from a codeblock.'
+      });
+      return;
+    }
+
+    const body = extractCodeBlockBody(this.getCurrentCodeBlockText());
+    const blockOptions = parseOptionText(getCodeBlockBodyOptionsText(body));
+    const defaultOptions: Record<string, RenderingSettingValue> = {
+      ...window.VerovioToolkit.getDefaultOptions(),
+      ...DEFAULT_SETTINGS,
+      ...this.plugin.settings,
+    };
+    renderVerovioRenderingSettings({
+      parent,
+      title: 'Rendering settings',
+      values: blockOptions,
+      fallbackValues: defaultOptions,
+      includeMeasureSelection: true,
+      resetLabel: 'Reset codeblock options',
+      resetNotice: 'Rendering settings removed from codeblock.',
+      onChange: (key, value) => this.updateCurrentCodeBlockOption(key, value),
+      onResetAll: (knownKeys) => {
+        this.replaceCurrentCodeBlockBody((currentBody) => removeOptionsFromBody(currentBody, knownKeys));
+        const uid = this.currentUid;
+        if (uid && instanceStateMap[uid]) {
+          knownKeys.forEach((key) => delete instanceStateMap[uid].options[key]);
+          instanceStateMap[uid].measureRange = undefined;
+          const wrapper = this.app.workspace.containerEl.ownerDocument.querySelector<HTMLElement>(
+            `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
+          );
+          if (wrapper) updateSVG(uid, wrapper);
+        }
+      },
+    });
+  }
+
+  private getCurrentCodeBlockText(): string {
+    if (this.editMode === 'combined') return this.currentBlockEditor?.state.doc.toString() ?? '';
+    if (this.editMode === 'block') return this.currentEditor?.state.doc.toString() ?? '';
+    return '';
+  }
+
+  private updateCurrentCodeBlockOption(key: string, value: VerovioOptionValue | undefined) {
+    this.replaceCurrentCodeBlockBody((body) => updateOptionInBody(body, key, value));
+    const uid = this.currentUid;
+    if (uid && instanceStateMap[uid]) {
+      instanceStateMap[uid].options = {
+        ...instanceStateMap[uid].options,
+        ...(value === undefined ? {} : { [key]: value }),
+      };
+      if (value === undefined) delete instanceStateMap[uid].options[key];
+      if (key === 'measureRange') {
+        instanceStateMap[uid].measureRange = typeof value === 'string' ? value : undefined;
+      }
+      const wrapper = this.app.workspace.containerEl.ownerDocument.querySelector<HTMLElement>(
+        `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
+      );
+      if (wrapper) updateSVG(uid, wrapper);
+    }
+  }
+
+  private replaceCurrentCodeBlockBody(updateBody: (body: string) => string) {
+    const editor = this.editMode === 'combined' ? this.currentBlockEditor : this.currentEditor;
+    if (this.editMode === 'block' || this.editMode === 'combined') {
+      if (!editor) return;
+      const currentText = editor.state.doc.toString();
+      const nextText = replaceCodeBlockBody(currentText, updateBody(extractCodeBlockBody(currentText)));
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: nextText } });
+      return;
+    }
+
+    return;
+  }
+
   private createEditorSvgSelectionExtension() {
     return CMEditorView.domEventHandlers({
       click: (event, editor) => {
@@ -980,8 +1174,7 @@ export class MusicEditorView extends ItemView {
     const text = doc.toString();
     const attrMatch = new RegExp(`xml:id\\s*=\\s*["']${escapeRegExp(elementId)}["']`).exec(text);
     if (!attrMatch) {
-      if (!isXmlText(text)) return;
-      new Notice(`xml:id not found in editor: ${elementId}`);
+      if (isMeiText(text)) console.debug(`xml:id not found in editor: ${elementId}`);
       return;
     }
 

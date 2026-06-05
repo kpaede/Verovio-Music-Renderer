@@ -17,6 +17,9 @@ declare module 'verovio/esm' {
     renderToMIDI(): string | null;
     renderToTimemap(opts?: VerovioOptions): VerovioTimemap;
     getMEI(): string;
+    getAvailableOptions(): VerovioAvailableOptions;
+    getDefaultOptions(): VerovioOptions;
+    getOptions(defaultValues?: boolean): VerovioOptions;
     getPageCount(): number;
     getVersion(): string;
     destroy(): void;

@@ -7,6 +7,9 @@ declare interface VerovioToolkit {
   renderToMIDI(): string | null;
   renderToTimemap(opts?: VerovioOptions): VerovioTimemap;
   getMEI(): string;
+  getAvailableOptions(): VerovioAvailableOptions;
+  getDefaultOptions(): VerovioOptions;
+  getOptions(defaultValues?: boolean): VerovioOptions;
   getPageCount(): number;
   getVersion?(): string;
   destroy?(): void;
@@ -26,6 +29,24 @@ declare global {
 
 type VerovioOptionValue = string | number | boolean | null | undefined;
 type VerovioOptions = Record<string, VerovioOptionValue>;
+
+interface VerovioOptionDefinition {
+  cmdOnly?: boolean;
+  default?: VerovioOptionValue | VerovioOptionValue[];
+  description?: string;
+  max?: number;
+  min?: number;
+  title?: string;
+  type?: string;
+  values?: string[];
+}
+
+interface VerovioAvailableOptions {
+  groups: Record<string, {
+    name: string;
+    options: Record<string, VerovioOptionDefinition>;
+  }>;
+}
 
 interface VerovioTimemap {
   [key: string]: unknown;

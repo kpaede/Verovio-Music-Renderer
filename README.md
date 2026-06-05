@@ -6,10 +6,10 @@ This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https:/
 
 The plugin currently has the following features:
 - Rendering MEI, MusicXML, ABC, PAE, Humdrum, CMME, GABC, and Volpiano notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
-- Converting these formats to MEI via the Obsidian Command Palette.
-- A side panel where you can edit musical code with XML and MEI syntax highlighting. For MEI, the rendered score and the code editor are linked in both directions: clicking a rendered element jumps to its XML line, and clicking an XML line selects the matching SVG element.
+- Converting supported formats to MEI via the Obsidian Command Palette or directly from the side panel.
+- A side panel where you can edit musical code with XML and MEI syntax highlighting, search the referenced file or code block, adjust per-rendering settings, and convert non-MEI sources to MEI. For MEI, the rendered score and the code editor are linked in both directions: clicking a rendered element jumps to its XML line, and clicking an XML line selects the matching SVG element.
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
-- A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
+- A settings menu with global rendering defaults, grouped Verovio controls, tooltips, sliders, reset buttons, automatic dark mode, and highlight color settings.
 - Sound playback of the rendered music.
 - Highlighting of live playback notes, synced to the sound playback.
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
@@ -294,7 +294,7 @@ You can open a Plaine & Easie editor from the Obsidian Command Palette with the 
 ![](screenshots/PAE_editor.png)
 
 ## Side Panel
-You can open a side panel via the Obsidian Command Palette or from a rendered score to inspect and edit the notation behind the rendering. The panel uses the same toolbar everywhere, with tabs for the referenced content, the original code block, MEI editing commands, insertion commands, conversion to MEI, and search.
+You can open a side panel via the Obsidian Command Palette or from a rendered score to inspect and edit the notation behind the rendering. The panel uses the same toolbar everywhere, with tabs for the referenced content, the original code block, MEI editing commands, insertion commands, conversion to MEI, and rendering settings.
 
 For MEI data, the side panel is connected to the rendered SVG:
 - Clicking a rendered note or other selectable SVG element highlights it, plays it when note playback on click is enabled, and jumps to the matching `xml:id` in the editor.
@@ -310,13 +310,14 @@ The panel supports the different rendering sources explicitly:
 - External URL sources are shown read-only for the fetched content; their local code block can still be edited.
 - Inline non-MEI code blocks keep the Edit and Insert menus disabled, but can be converted to MEI from the toolbar after confirmation. Existing code block options such as `measureRange` are preserved where possible.
 
-The built-in search view follows Obsidian's editor search pattern and can be toggled on and off from the toolbar.
+For referenced files and code blocks, the built-in search view is always available above the editor and follows Obsidian's editor search pattern.
 
 ![](screenshots/sidepanel.png)
 
 ## Rendering Options
-In the settings menu of the Obsidian plugin, you can adjust several important parameters globally for all renderings, including a dark mode and picking a highlight color.
-You can also apply custom settings for a specific rendering by adding them to your code block in Obsidian. Please refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) for available options. Note that not all options may work and that they interfere with each other. Please note, these won't work (yet), when you're rendering from a code block.
+In the plugin settings, the global rendering settings are built from Verovio's available options and grouped into searchable sections. Numeric values include a slider, a number field, and a reset button; options also include tooltips with short descriptions, defaults, and ranges where available. These global settings are the fallback defaults for every rendering.
+
+For code block renderings, the side panel includes a Rendering settings tab with the same controls plus measure selection. Changes made there are saved as code block options and override the global defaults only for that rendering. Resetting an individual value removes the local override so the current global setting applies again. You can also refer to the [Verovio documentation](https://book.verovio.org/toolkit-reference/toolkit-options.html) for the full option reference.
 
 ```
 COPY FROM HERE
@@ -330,7 +331,7 @@ breaks: encoded
 ```
 
 ## Rendering Measure Selections
-A special feature of this plugin is rendering predefined measures. To render measures 1-10, you can use the measureRange command like in this example. Please note that in this example, measure 20 is not included in the rendering. The type of breaks you choose to render can greatly influence the output (or even make the plugin render nothing at all). For example, "encoded" breaks can result in a blank rendering if no encoded break exists in your selection. Because of this, "breaks: none" is added to the example below, which might be a good default option for rendering musical snippets. You can also use "start" and "end" instead of numbers, e.g. `measureRange: 15-end` – or just render single measures: `measureRange: 5`. This works for measure-based MEI after import, such as MEI, ABC and MusicXML. Formats imported without `<measure>` elements, such as GABC, Volpiano and many CMME/mensural files, cannot be trimmed with `measureRange`.
+A special feature of this plugin is rendering predefined measures. To render measures 1-10, you can use the measureRange command like in this example. Please note that in this example, measure 20 is not included in the rendering. The type of breaks you choose to render can greatly influence the output (or even make the plugin render nothing at all). For example, "encoded" breaks can result in a blank rendering if no encoded break exists in your selection. Because of this, "breaks: none" is added to the example below, which might be a good default option for rendering musical snippets. You can also use "start" and "end" instead of numbers, e.g. `measureRange: 2-end` or `measureRange: 15-end` – or just render single measures: `measureRange: 5`. This works for measure-based MEI after import, such as MEI, ABC and MusicXML. Formats imported without `<measure>` elements, such as GABC, Volpiano and many CMME/mensural files, cannot be trimmed with `measureRange`.
 
 
 ```

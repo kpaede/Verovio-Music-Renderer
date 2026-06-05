@@ -1,7 +1,7 @@
 // parseVerovioSource.ts
 
 export type VerovioFormat = 'mei' | 'abc' | 'cmme.xml' | 'gabc' | 'humdrum' | 'musicxml' | 'pae' | 'volpiano';
-export type VerovioOptionValue = string | number | boolean;
+export type VerovioOptionValue = string | number | boolean | null | undefined;
 export type VerovioOptions = Record<string, VerovioOptionValue>;
 
 export interface ParsedVerovioSource {

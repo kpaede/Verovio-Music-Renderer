@@ -343,7 +343,9 @@ function applyMeasureRange(measureRange?: string) {
 }
 
 function hasMeasures(mei: string): boolean {
-  return /<measure\b/i.test(mei);
+  const doc = new DOMParser().parseFromString(mei, 'application/xml');
+  if (doc.querySelector('parsererror')) return /<(?:[\w.-]+:)?measure\b/i.test(mei);
+  return Array.from(doc.getElementsByTagName('*')).some((element) => element.localName === 'measure');
 }
 
 /** Haupt-Renderer */

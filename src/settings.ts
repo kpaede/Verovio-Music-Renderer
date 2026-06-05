@@ -1,13 +1,15 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, setTooltip } from 'obsidian';
 import VerovioMusicRenderer from './main';
+import { renderVerovioRenderingSettings, type RenderingSettingValue } from './renderingSettingsControls';
 
 export interface VerovioPluginSettings {
-  scale: number;
-  adjustPageHeight: boolean;
-  adjustPageWidth: boolean;
-  breaks: string;
-  pageWidth: number;
-  font: string;
+  [key: string]: RenderingSettingValue;
+  scale?: number;
+  adjustPageHeight?: boolean;
+  adjustPageWidth?: boolean;
+  breaks?: string;
+  pageWidth?: number;
+  font?: string;
   highlightColor?: string;
   selectionColor?: string;
   playNoteOnClick: boolean;
@@ -17,13 +19,15 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   scale: 100,
   adjustPageHeight: true,
   adjustPageWidth: true,
-  breaks: 'auto',
+  breaks: 'encoded',
   pageWidth: 700,
   font: 'Leland',
   highlightColor: '#DC143C',
   selectionColor: '#0066FF',
   playNoteOnClick: false
 }
+
+export { MUSIC_FALLBACK_FONTS, MUSIC_FONTS } from './musicFonts';
 
 export class VerovioSettingTab extends PluginSettingTab {
   plugin: VerovioMusicRenderer;
@@ -37,123 +41,143 @@ export class VerovioSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl)
-      .setName('Adjust rendering height automatically')
-      .setDesc('Disables other sizing options automatically')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.adjustPageHeight)
-        .onChange(async (value) => {
-          this.plugin.settings.adjustPageHeight = value;
-          await this.plugin.saveSettings();
-        }));
+    this.renderPluginBehaviorSettings(containerEl);
 
-    new Setting(containerEl)
-      .setName('Adjust rendering width automatically')
-      .setDesc('Disables other sizing options automatically')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.adjustPageWidth)
-        .onChange(async (value) => {
-          this.plugin.settings.adjustPageWidth = value;
-          await this.plugin.saveSettings();
-        }));
+    const renderingContainer = containerEl.createDiv('verovio-global-rendering-settings');
+    renderVerovioRenderingSettings({
+      parent: renderingContainer,
+      title: 'Global rendering settings',
+      values: this.plugin.settings,
+      fallbackValues: {
+        ...(window.VerovioToolkit?.getDefaultOptions?.() ?? {}),
+        ...DEFAULT_SETTINGS,
+      },
+      includeMeasureSelection: false,
+      resetLabel: 'Reset global rendering settings',
+      resetNotice: 'Global rendering settings reset.',
+      onChange: async (key, value) => {
+        if (value === undefined) {
+          if (key in DEFAULT_SETTINGS) this.plugin.settings[key] = DEFAULT_SETTINGS[key];
+          else delete this.plugin.settings[key];
+        }
+        else this.plugin.settings[key] = value;
+        await this.plugin.saveSettings();
+      },
+      onResetAll: async (keys) => {
+        keys.forEach((key) => {
+          if (key in DEFAULT_SETTINGS) this.plugin.settings[key] = DEFAULT_SETTINGS[key];
+          else delete this.plugin.settings[key];
+        });
+        await this.plugin.saveSettings();
+      },
+    });
+  }
 
-    new Setting(containerEl)
-      .setName('Scale')
-      .setDesc('Scale rendering, 1-150%')
-      .addSlider(slider => slider
-        .setLimits(1, 150, 1)
-        .setValue(this.plugin.settings.scale)
-        .onChange(async (value) => {
-          this.plugin.settings.scale = value;
-          await this.plugin.saveSettings();
-        }));
+  private renderPluginBehaviorSettings(parent: HTMLElement) {
+    const details = parent.createEl('details', { cls: 'verovio-rendering-settings-group verovio-plugin-behavior-settings' });
+    details.dataset.settingsGroup = 'Plugin behavior';
+    details.open = true;
+    details.createEl('summary', { text: 'Plugin behavior' });
 
-    new Setting(containerEl)
-      .setName('Breaks')
-      .setDesc('Type of breaks')
-      .addDropdown(dropdown => dropdown
-        .addOption('none', 'None')
-        .addOption('auto', 'Auto')
-        .addOption('line', 'Line')
-        .addOption('smart', 'Smart')
-        .addOption('encoded', 'Encoded')
-        .setValue(this.plugin.settings.breaks)
-        .onChange(async (value) => {
-          this.plugin.settings.breaks = value;
-          await this.plugin.saveSettings();
-        }));
+    this.createColorSettingRow(
+      details,
+      'highlightColor',
+      'Highlight color',
+      'Hex color used for currently-playing note highlight',
+      '#DC143C'
+    );
+    this.createColorSettingRow(
+      details,
+      'selectionColor',
+      'Selection color',
+      'Hex color used for clicked notation elements',
+      '#0066FF'
+    );
+    this.createBooleanSettingRow(
+      details,
+      'playNoteOnClick',
+      'Play note on click',
+      'Play the clicked note or chord as a short piano tone'
+    );
+  }
 
-    new Setting(containerEl)
-      .setName('Page width')
-      .setDesc('Width of the rendering.')
-      .addSlider(slider => slider
-        .setLimits(100, 8800, 50)
-        .setValue(this.plugin.settings.pageWidth)
-        .onChange(async (value) => {
-          this.plugin.settings.pageWidth = value;
-          await this.plugin.saveSettings();
-        }));
+  private createColorSettingRow(
+    parent: HTMLElement,
+    key: 'highlightColor' | 'selectionColor',
+    label: string,
+    tooltip: string,
+    fallback: string
+  ) {
+    const item = parent.createDiv('verovio-rendering-option-item verovio-plugin-color-option');
+    item.dataset.optionKey = key;
+    item.dataset.optionLabel = label;
+    const inputId = `verovio-global-${key}`;
+    const labelEl = item.createEl('label', { text: label, attr: { for: inputId } });
+    this.attachTooltip(labelEl, tooltip);
 
+    const controls = item.createDiv('verovio-plugin-color-control');
+    const colorInput = controls.createEl('input', {
+      type: 'color',
+      value: this.plugin.settings[key] || fallback,
+      attr: { id: inputId },
+    });
+    this.attachTooltip(colorInput, tooltip);
+    const textInput = controls.createEl('input', {
+      type: 'text',
+      value: this.plugin.settings[key] || fallback,
+      attr: { placeholder: fallback, 'aria-label': `${label} hex value` },
+    });
+    this.attachTooltip(textInput, tooltip);
 
-    new Setting(containerEl)
-      .setName('Font')
-      .setDesc('Musical font for rendering')
-      .addDropdown(dropdown => dropdown
-        .addOption('Leipzig', 'Leipzig')
-        .addOption('Bravura', 'Bravura')
-        .addOption('Gootville', 'Gootville')
-        .addOption('Leland', 'Leland')
-        .setValue(this.plugin.settings.font)
-        .onChange(async (value) => {
-          this.plugin.settings.font = value;
-          await this.plugin.saveSettings();
-        }));
+    const commit = async (value: string) => {
+      const nextValue = value || fallback;
+      this.plugin.settings[key] = nextValue;
+      colorInput.value = nextValue;
+      textInput.value = nextValue;
+      await this.plugin.saveSettings();
+    };
+    colorInput.addEventListener('input', () => {
+      textInput.value = colorInput.value;
+    });
+    colorInput.addEventListener('change', () => void commit(colorInput.value));
+    textInput.addEventListener('change', () => void commit(textInput.value.trim()));
+  }
 
-    new Setting(containerEl)
-      .setName('Highlight color')
-      .setDesc('Hex color used for currently-playing note highlight')
-      .addColorPicker(color => color
-        .setValue(this.plugin.settings.highlightColor || '#DC143C')
-        .onChange(async (value) => {
-          this.plugin.settings.highlightColor = value || '#DC143C';
-          await this.plugin.saveSettings();
-          this.display();
-        }))
-      .addText(text => text
-        .setPlaceholder('#DC143C')
-        .setValue(this.plugin.settings.highlightColor || '#DC143C')
-        .onChange(async (value) => {
-          this.plugin.settings.highlightColor = value || '#DC143C';
-          await this.plugin.saveSettings();
-        }));
+  private createBooleanSettingRow(
+    parent: HTMLElement,
+    key: 'playNoteOnClick',
+    label: string,
+    tooltip: string
+  ) {
+    const item = parent.createDiv('verovio-rendering-option-item');
+    item.dataset.optionKey = key;
+    item.dataset.optionLabel = label;
+    const inputId = `verovio-global-${key}`;
+    const labelEl = item.createEl('label', { text: label, attr: { for: inputId } });
+    this.attachTooltip(labelEl, tooltip);
 
-    new Setting(containerEl)
-      .setName('Selection color')
-      .setDesc('Hex color used for clicked notation elements')
-      .addColorPicker(color => color
-        .setValue(this.plugin.settings.selectionColor || '#0066FF')
-        .onChange(async (value) => {
-          this.plugin.settings.selectionColor = value || '#0066FF';
-          await this.plugin.saveSettings();
-          this.display();
-        }))
-      .addText(text => text
-        .setPlaceholder('#0066FF')
-        .setValue(this.plugin.settings.selectionColor || '#0066FF')
-        .onChange(async (value) => {
-          this.plugin.settings.selectionColor = value || '#0066FF';
-          await this.plugin.saveSettings();
-        }));
+    const checkboxWrapper = item.createEl('label', {
+      cls: 'verovio-rendering-option-checkbox-wrap',
+      attr: { for: inputId },
+    });
+    this.attachTooltip(checkboxWrapper, tooltip);
+    const input = item.createEl('input', {
+      type: 'checkbox',
+      cls: 'verovio-rendering-option-checkbox',
+      attr: { id: inputId },
+    });
+    this.attachTooltip(input, tooltip);
+    checkboxWrapper.appendChild(input);
+    checkboxWrapper.createSpan({ cls: 'verovio-rendering-option-checkbox-box' });
+    input.checked = Boolean(this.plugin.settings[key]);
+    input.addEventListener('change', async () => {
+      this.plugin.settings[key] = input.checked;
+      await this.plugin.saveSettings();
+    });
+  }
 
-    new Setting(containerEl)
-      .setName('Play note on click')
-      .setDesc('Play the clicked note or chord as a short piano tone')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.playNoteOnClick)
-        .onChange(async (value) => {
-          this.plugin.settings.playNoteOnClick = value;
-          await this.plugin.saveSettings();
-        }));
-
+  private attachTooltip(el: HTMLElement, text: string) {
+    setTooltip(el, text, { placement: 'top', delay: 200 });
+    el.setAttribute('aria-label', text);
   }
 }

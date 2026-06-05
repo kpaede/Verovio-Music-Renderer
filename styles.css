@@ -138,10 +138,11 @@
   height: 18px;
 }
 
-.verovio-editor-tab-image {
-  width: 19px;
-  height: 19px;
-  object-fit: contain;
+.verovio-editor-tab-text-icon {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .verovio-editor-tab-button.is-active {
@@ -239,6 +240,169 @@
   padding: 5px 8px;
   text-align: left;
   font-size: var(--font-ui-small);
+}
+
+.verovio-rendering-settings-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.verovio-rendering-settings-controls input[type="search"] {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.verovio-rendering-settings-group {
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 6px 0;
+}
+
+.verovio-rendering-settings-group summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.verovio-rendering-option-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 34%);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 0;
+  font-size: var(--font-ui-small);
+}
+
+.verovio-rendering-option-item:nth-child(even) {
+  background: color-mix(in srgb, var(--background-modifier-hover) 55%, transparent);
+}
+
+.verovio-rendering-option-item label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verovio-rendering-option-item input,
+.verovio-rendering-option-item select {
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  font-size: var(--font-ui-smaller);
+}
+
+.verovio-rendering-option-item-slider {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 46%);
+}
+
+.verovio-rendering-linked-control {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.verovio-rendering-linked-control input[type="number"] {
+  width: 68px;
+}
+
+.verovio-rendering-linked-control input[type="range"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.verovio-rendering-default-button {
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  color: var(--text-muted);
+}
+
+.verovio-rendering-default-button:hover {
+  color: var(--text-normal);
+}
+
+.verovio-plugin-color-option {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 46%);
+}
+
+.verovio-plugin-color-control {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.verovio-rendering-option-item .verovio-plugin-color-control input[type="color"] {
+  width: 36px;
+  min-width: 36px;
+  padding: 2px;
+}
+
+.verovio-rendering-option-item .verovio-plugin-color-control input[type="text"] {
+  width: 100%;
+}
+
+.verovio-rendering-option-checkbox-wrap {
+  justify-self: end;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 24px;
+  margin: 0 6px 0 0;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.verovio-rendering-option-item input.verovio-rendering-option-checkbox {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.verovio-rendering-option-checkbox-box {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--text-muted);
+  border-radius: 2px;
+  background: var(--background-primary);
+}
+
+.verovio-rendering-option-checkbox:checked + .verovio-rendering-option-checkbox-box {
+  border-color: var(--interactive-accent);
+  background: var(--background-primary);
+}
+
+.verovio-rendering-option-checkbox:checked + .verovio-rendering-option-checkbox-box::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--interactive-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.verovio-rendering-option-checkbox:focus-visible + .verovio-rendering-option-checkbox-box {
+  outline: 2px solid color-mix(in srgb, var(--interactive-accent) 45%, transparent);
+  outline-offset: 2px;
 }
 
 .verovio-mei-menu-dropdown {
@@ -356,11 +520,7 @@
 }
 
 .verovio-editor-wrapper .cm-search button[name="close"] {
-  width: 28px;
-  padding: 0;
-  margin-left: auto;
-  font-size: 18px;
-  line-height: 1;
+  display: none;
 }
 
 .verovio-editor-wrapper .cm-search label {
