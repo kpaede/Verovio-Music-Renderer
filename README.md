@@ -5,14 +5,13 @@
 This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – an open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as MusicXML, ABC, PAE, CMME, GABC, Humdrum, and Volpiano) into SVG. With this plugin, you can render musical scores  within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
-- Rendering MEI, MusicXML, ABC, PAE, Humdrum, CMME, GABC, and Volpiano notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
-- Converting supported formats to MEI via the Obsidian Command Palette or directly from the side panel.
+- Rendering MEI, MusicXML, ABC, PAE, Humdrum, CMME, GABC, and Volpiano notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks – including rendering specific measure selections.
 - A side panel where you can edit musical code with XML and MEI syntax highlighting, search the referenced file or code block, adjust per-rendering settings, and convert non-MEI sources to MEI. For MEI, the rendered score and the code editor are linked in both directions: clicking a rendered element jumps to its line – and clicking line selects the matching SVG element if there is one.
+- A quick-n-dirty editor for sketching musical notation and pasting it as a codeblock in PAE oder MEI.
+- Converting all supported formats to MEI via the Obsidian Command Palette or directly from the side panel.
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
-- Sound playback of the rendered music.
-- Highlighting of live playback notes, synced to the sound playback.
+- Sound playback of the rendered music with highlighting of live playback notes, synced to the sound playback. (You can choose your own highlight color.)
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
-- Rendering specific measure selections.
 - Page turning buttons and automatic page turning during playback
 - A settings menu with global rendering defaults, grouped Verovio controls, tooltips, sliders, reset buttons, automatic dark mode, and highlight color settings.
 
@@ -371,8 +370,6 @@ This plugin respects your privacy:
 - [mei-friend](https://github.com/mei-friend/mei-friend) – the side panel editing functions were taken from the mei-friend editor
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
-I have just rudimentary programming skills, so this plugin is mostly vibe coded.
-
 ## FAQ
 
 Q: Is it working with the mobile versions of Obsidian?
@@ -388,7 +385,7 @@ Q: I don't hear anything, and playback isn't starting.
 A: Make sure you're connected to the internet to load the SoundFont for playback. It won't work offline, and note highlighting won't either. Check the Obsidian dev tools when in doubt.
 
 Q: I don't hear anything on iOS.
-A: Make sure Silence Mode is not turned on; otherwise you won't hear anything, even with full volume.
+A: Make sure Silence/DnD Mode is not turned on; otherwise you won't hear anything, even with full volume.
 
 ## Disclaimer
 
