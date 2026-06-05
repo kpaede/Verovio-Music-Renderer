@@ -3,7 +3,7 @@ import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioO
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
 import { loadVerovio } from './verovioLoader';
 import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
-import { VerovioModal } from './modal';
+import { VerovioModal } from './paeEditorModal';
 import parseVerovioSource, { VerovioFormat } from './parseVerovioSource';
 
 interface FencedSelection {

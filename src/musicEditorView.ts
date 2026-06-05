@@ -1,44 +1,38 @@
 import VerovioMusicRenderer from './main';
-import { ButtonComponent, ItemView, Modal, Notice, setIcon, TFile, WorkspaceLeaf } from 'obsidian';
+import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 import { clickMap, instanceStateMap, refreshRenderingsForSource, selectRenderedNotationElement, sourceMap, updateSVG } from './verovioProcessor';
 import parseVerovioSource from './parseVerovioSource';
 import type { VerovioOptionValue } from './parseVerovioSource';
 
 // CodeMirror 6
 import {
-  EditorView as CMEditorView,
-  ViewUpdate,
-  Decoration,
-  keymap,
-  highlightActiveLine
+  EditorView as CMEditorView
 } from '@codemirror/view';
-import {
-  EditorState,
-  StateEffect,
-  StateField
-} from '@codemirror/state';
-import { basicSetup } from '@codemirror/basic-setup';
-import { xml } from '@codemirror/lang-xml';
-import { closeSearchPanel, openSearchPanel, search, searchKeymap, searchPanelOpen } from '@codemirror/search';
+import { closeSearchPanel, openSearchPanel, searchPanelOpen } from '@codemirror/search';
 import { createMeiEditorDropdownMenu } from './meiEditorDropdownMenus';
 import { applyMeiEditorCommand } from './meiEditorOperations';
 import { extractCodeBlockBody, replaceCodeBlockBody, resolveCodeBlockRange } from './codeBlockRange';
 import { renderVerovioRenderingSettings, type RenderingSettingValue } from './renderingSettingsControls';
 import { DEFAULT_SETTINGS } from './settings';
+import { EDITOR_TOOLBAR_ITEMS, setToolbarIcon, type CombinedEditorTab, type SingleEditorTab } from './editorToolbar';
+import {
+  getCodeBlockBodyOptionsText,
+  getInputFrom,
+  isMeiText,
+  isXmlText,
+  parseOptionText,
+  removeOptionsFromBody,
+  splitNotationAndOptions,
+  updateOptionInBody
+} from './editorCodeblockOptions';
+import {
+  collectXmlIdCandidatesNearPosition,
+  markXmlLineEffect
+} from './editorXmlTools';
+import { confirmConvertToMei } from './convertToMeiModal';
+import { createMusicCodeEditor } from './musicCodeEditor';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
-
-type CombinedEditorTab = 'file' | 'block' | 'remote' | 'edit' | 'insert' | 'convert' | 'search' | 'settings';
-type SingleEditorTab = 'source' | 'block' | 'edit' | 'insert' | 'convert' | 'search' | 'settings';
-
-const EDITOR_TOOLBAR_ITEMS: Array<{ tab: SingleEditorTab; icon: string; label: string }> = [
-  { tab: 'source', icon: 'list-music', label: 'Referenced content' },
-  { tab: 'block', icon: 'code-2', label: 'Codeblock' },
-  { tab: 'edit', icon: 'square-pen', label: 'Edit' },
-  { tab: 'insert', icon: 'plus', label: 'Insert' },
-  { tab: 'convert', icon: 'mei-text', label: 'Convert to MEI' },
-  { tab: 'settings', icon: 'sliders-horizontal', label: 'Rendering settings' },
-];
 
 /** Debounce-Helfer: führt fn frühestens wait ms nach letztem Aufruf aus */
 function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): F {
@@ -49,173 +43,6 @@ function debounce<F extends (...args: unknown[]) => void>(fn: F, wait: number): 
   }) as F;
 }
 
-function setToolbarIcon(button: HTMLElement, icon: string) {
-  if (icon === 'mei-text') {
-    button.createSpan({ cls: 'verovio-editor-tab-text-icon', text: 'MEI' });
-    return;
-  }
-  setIcon(button, icon);
-}
-
-function isMeiText(text: string): boolean {
-  return /<mei(?:\s|>)/i.test(text);
-}
-
-function isXmlText(text: string): boolean {
-  return /<\?xml\b|<[A-Za-z_][\w:.-]*(?:\s|>)/.test(extractCodeBlockBody(text).trim());
-}
-
-function getInputFrom(format: string): string {
-  return format === 'pae' ? 'pae' : format;
-}
-
-function splitNotationAndOptions(body: string): { notation: string; optionsText: string } {
-  const lines = body.split('\n');
-  let end = lines.length;
-
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim();
-    if (line === '') continue;
-    if (/^https?:\/\//i.test(line)) break;
-    if (/^[a-z]\w*\s*:\s*.+$/.test(line) && !/^[A-Za-z]+:\/\//.test(line)) {
-      end = i;
-      continue;
-    }
-    break;
-  }
-
-  return {
-    notation: lines.slice(0, end).join('\n').trim(),
-    optionsText: lines.slice(end).join('\n').trim(),
-  };
-}
-
-function optionLineKey(line: string): string | undefined {
-  const match = line.trim().match(/^([a-z]\w*)\s*:\s*.+$/);
-  return match?.[1];
-}
-
-function getCodeBlockBodyOptionsText(body: string): string {
-  return splitNotationAndOptions(body).optionsText;
-}
-
-function formatOptionValue(value: VerovioOptionValue | VerovioOptionValue[]): string {
-  if (Array.isArray(value)) return value.join(',');
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  return String(value);
-}
-
-function updateOptionInBody(body: string, key: string, value: VerovioOptionValue | undefined): string {
-  const { notation, optionsText } = splitNotationAndOptions(body);
-  const optionLines = optionsText
-    ? optionsText.split('\n').filter((line) => optionLineKey(line) !== key)
-    : [];
-
-  if (value !== undefined && value !== null && value !== '') {
-    optionLines.push(`${key}: ${formatOptionValue(value)}`);
-  }
-
-  return optionLines.length
-    ? `${notation}\n${optionLines.join('\n')}`
-    : notation;
-}
-
-function removeOptionsFromBody(body: string, keys: Set<string>): string {
-  const { notation, optionsText } = splitNotationAndOptions(body);
-  if (!optionsText) return notation;
-  const optionLines = optionsText
-    .split('\n')
-    .filter((line) => {
-      const key = optionLineKey(line);
-      return !key || !keys.has(key);
-    });
-  return optionLines.length ? `${notation}\n${optionLines.join('\n')}` : notation;
-}
-
-function parseOptionText(optionsText: string): Record<string, VerovioOptionValue> {
-  const parsed: Record<string, VerovioOptionValue> = {};
-  optionsText.split('\n').forEach((line) => {
-    const key = optionLineKey(line);
-    if (!key) return;
-    const sepIndex = line.indexOf(':');
-    parsed[key] = parseOptionValue(line.slice(sepIndex + 1).trim());
-  });
-  return parsed;
-}
-
-function parseOptionValue(value: string): VerovioOptionValue {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  const numberValue = Number(value);
-  return Number.isNaN(numberValue) ? value : numberValue;
-}
-
-function collectXmlIds(value: string): string[] {
-  const ids: string[] = [];
-  const regex = /\bxml:id\s*=\s*["']([^"']+)["']/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(value)) !== null) ids.push(match[1]);
-  return ids;
-}
-
-function collectXmlIdCandidatesNearPosition(text: string, pos: number, lineFrom: number, lineTo: number): string[] {
-  const candidates: string[] = [];
-  const add = (ids: string[]) => {
-    ids.forEach((id) => {
-      if (!candidates.includes(id)) candidates.push(id);
-    });
-  };
-
-  const lineText = text.slice(lineFrom, lineTo);
-  add(collectXmlIds(lineText));
-  if (!lineText.includes('<')) return candidates;
-
-  const tagStart = text.lastIndexOf('<', pos);
-  const tagEnd = text.indexOf('>', pos);
-  if (tagStart >= 0 && tagEnd >= pos) {
-    const previousTagEnd = text.lastIndexOf('>', pos);
-    if (tagStart > previousTagEnd) add(collectXmlIds(text.slice(tagStart, tagEnd + 1)));
-  }
-
-  const contextStart = Math.max(0, pos - 1000);
-  add(collectXmlIds(text.slice(contextStart, pos)).reverse());
-
-  return candidates;
-}
-
-/** Theme-Override: kräftigere Hervorhebung der aktiven Zeile */
-const activeLineTheme = CMEditorView.theme({
-  '.cm-activeLine': {
-    backgroundColor: 'rgba(100, 150, 250, 0.3)',
-  }
-});
-
-/** Theme-Override: Schriftgröße im Editor verkleinern */
-const codeFontTheme = CMEditorView.theme({
-  '& .cm-content': {
-    fontSize: '0.85em'
-  }
-});
-
-const markXmlLineEffect = StateEffect.define<number | null>();
-const markedXmlLineField = StateField.define({
-  create() {
-    return Decoration.none;
-  },
-  update(value, transaction) {
-    value = value.map(transaction.changes);
-    for (const effect of transaction.effects) {
-      if (!effect.is(markXmlLineEffect)) continue;
-      value = effect.value === null
-        ? Decoration.none
-        : Decoration.set([
-          Decoration.line({ class: 'verovio-editor-marked-xml-line' }).range(effect.value)
-        ]);
-    }
-    return value;
-  },
-  provide: (field) => CMEditorView.decorations.from(field)
-});
 
 export class MusicEditorView extends ItemView {
   plugin: VerovioMusicRenderer;
@@ -550,30 +377,12 @@ export class MusicEditorView extends ItemView {
       }
     }, 300);
 
-    // Change-Listener nur bei echten doc-Änderungen
-    const changeExt = CMEditorView.updateListener.of((v: ViewUpdate) => {
-      if (v.docChanged) void save();
-    });
-
-    // State mit allen Extensions
-    const state = EditorState.create({
+    this.currentEditor = createMusicCodeEditor({
       doc: blockText,
-      extensions: [
-        basicSetup,
-        xml(),
-        markedXmlLineField,
-        this.createEditorSvgSelectionExtension(),
-        search(),
-        keymap.of(searchKeymap),
-        changeExt,
-        highlightActiveLine(),
-        activeLineTheme,
-        codeFontTheme
-      ]
+      parent: editorWrapper,
+      onChange: () => void save(),
+      onClick: (event, editor) => this.selectSvgElementFromEditorClick(event, editor),
     });
-
-    // Editor erzeugen
-    this.currentEditor = new CMEditorView({ state, parent: editorWrapper });
 
     this.currentBlockEditor = undefined;
     this.currentFileEditor = undefined;
@@ -685,46 +494,17 @@ export class MusicEditorView extends ItemView {
       }
     }, 300);
 
-    const blockChangeExt = CMEditorView.updateListener.of((v: ViewUpdate) => {
-      if (v.docChanged) void saveBlock();
-    });
-
-    this.currentFileEditor = new CMEditorView({
-      state: EditorState.create({
-        doc: remoteText,
-        extensions: [
-          basicSetup,
-          xml(),
-          markedXmlLineField,
-          this.createEditorSvgSelectionExtension(),
-          EditorState.readOnly.of(true),
-          CMEditorView.editable.of(false),
-          search(),
-          keymap.of(searchKeymap),
-          highlightActiveLine(),
-          activeLineTheme,
-          codeFontTheme
-        ]
-      }),
+    this.currentFileEditor = createMusicCodeEditor({
+      doc: remoteText,
       parent: remoteWrapper,
+      readOnly: true,
+      onClick: (event, editor) => this.selectSvgElementFromEditorClick(event, editor),
     });
-    this.currentBlockEditor = new CMEditorView({
-      state: EditorState.create({
-        doc: blockText,
-        extensions: [
-          basicSetup,
-          xml(),
-          markedXmlLineField,
-          this.createEditorSvgSelectionExtension(),
-          search(),
-          keymap.of(searchKeymap),
-          blockChangeExt,
-          highlightActiveLine(),
-          activeLineTheme,
-          codeFontTheme
-        ]
-      }),
+    this.currentBlockEditor = createMusicCodeEditor({
+      doc: blockText,
       parent: blockWrapper,
+      onChange: () => void saveBlock(),
+      onClick: (event, editor) => this.selectSvgElementFromEditorClick(event, editor),
     });
     this.currentEditor = undefined;
 
@@ -880,48 +660,18 @@ export class MusicEditorView extends ItemView {
       }
     }, 300);
 
-    const blockChangeExt = CMEditorView.updateListener.of((v: ViewUpdate) => {
-      if (v.docChanged) void saveBlock();
-    });
-
-    const fileChangeExt = CMEditorView.updateListener.of((v: ViewUpdate) => {
-      if (v.docChanged) void saveFile();
-    });
-
-    const blockState = EditorState.create({
+    this.currentBlockEditor = createMusicCodeEditor({
       doc: blockText,
-      extensions: [
-        basicSetup,
-        xml(),
-        markedXmlLineField,
-        this.createEditorSvgSelectionExtension(),
-        search(),
-        keymap.of(searchKeymap),
-        blockChangeExt,
-        highlightActiveLine(),
-        activeLineTheme,
-        codeFontTheme
-      ]
+      parent: blockWrapper,
+      onChange: () => void saveBlock(),
+      onClick: (event, editor) => this.selectSvgElementFromEditorClick(event, editor),
     });
-
-    const fileState = EditorState.create({
+    this.currentFileEditor = createMusicCodeEditor({
       doc: fileText,
-      extensions: [
-        basicSetup,
-        xml(),
-        markedXmlLineField,
-        this.createEditorSvgSelectionExtension(),
-        search(),
-        keymap.of(searchKeymap),
-        fileChangeExt,
-        highlightActiveLine(),
-        activeLineTheme,
-        codeFontTheme
-      ]
+      parent: fileWrapper,
+      onChange: () => void saveFile(),
+      onClick: (event, editor) => this.selectSvgElementFromEditorClick(event, editor),
     });
-
-    this.currentBlockEditor = new CMEditorView({ state: blockState, parent: blockWrapper });
-    this.currentFileEditor = new CMEditorView({ state: fileState, parent: fileWrapper });
     this.currentEditor = undefined;
 
     activateTab('file');
@@ -1115,15 +865,6 @@ export class MusicEditorView extends ItemView {
     return;
   }
 
-  private createEditorSvgSelectionExtension() {
-    return CMEditorView.domEventHandlers({
-      click: (event, editor) => {
-        this.selectSvgElementFromEditorClick(event, editor);
-        return false;
-      }
-    });
-  }
-
   private selectSvgElementFromEditorClick(event: MouseEvent, editor: CMEditorView) {
     if (!this.currentUid) return;
 
@@ -1194,52 +935,4 @@ export class MusicEditorView extends ItemView {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function confirmConvertToMei(app: VerovioMusicRenderer['app'], format: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const modal = new ConfirmConvertToMeiModal(app, format, resolve);
-    modal.open();
-  });
-}
-
-class ConfirmConvertToMeiModal extends Modal {
-  private resolved = false;
-
-  constructor(
-    app: VerovioMusicRenderer['app'],
-    private readonly format: string,
-    private readonly resolveChoice: (confirmed: boolean) => void
-  ) {
-    super(app);
-  }
-
-  onOpen() {
-    this.contentEl.empty();
-    this.contentEl.createEl('h2', { text: 'Convert to MEI?' });
-    this.contentEl.createEl('p', {
-      text: `This will replace the inline ${this.format} notation in the codeblock with generated MEI. Codeblock options will be kept.`
-    });
-
-    const buttonRow = this.contentEl.createDiv('verovio-confirm-buttons');
-    new ButtonComponent(buttonRow)
-      .setButtonText('Convert to MEI')
-      .setCta()
-      .onClick(() => {
-        this.resolved = true;
-        this.close();
-        this.resolveChoice(true);
-      });
-    new ButtonComponent(buttonRow)
-      .setButtonText('Cancel')
-      .onClick(() => {
-        this.resolved = true;
-        this.close();
-        this.resolveChoice(false);
-      });
-  }
-
-  onClose() {
-    if (!this.resolved) this.resolveChoice(false);
-  }
 }

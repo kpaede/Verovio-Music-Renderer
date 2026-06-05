@@ -1,7 +1,8 @@
 // midiController.ts
 import MIDI from 'lz-midi';
 import { Notice } from 'obsidian';
-import { instanceStateMap, changePage, updateSVG, NOTE_ON_OFFSET } from './verovioProcessor';
+import { changePage, updateSVG } from './verovioProcessor';
+import { instanceStateMap, NOTE_ON_OFFSET } from './verovioState';
 
 interface MidiMessage {
   message: number;
