@@ -1,6 +1,6 @@
 import VerovioMusicRenderer from './main';
 import { ButtonComponent, ItemView, Modal, Notice, setIcon, TFile, WorkspaceLeaf } from 'obsidian';
-import { clickMap, instanceStateMap, refreshRenderingsForSource, sourceMap, updateSVG } from './verovioProcessor';
+import { clickMap, instanceStateMap, refreshRenderingsForSource, selectRenderedNotationElement, sourceMap, updateSVG } from './verovioProcessor';
 import parseVerovioSource from './parseVerovioSource';
 
 // CodeMirror 6
@@ -22,7 +22,7 @@ import { closeSearchPanel, openSearchPanel, search, searchKeymap, searchPanelOpe
 import { createMeiEditorDropdownMenu } from './meiEditorDropdownMenus';
 import { applyMeiEditorCommand } from './meiEditorOperations';
 import { extractCodeBlockBody, replaceCodeBlockBody, resolveCodeBlockRange } from './codeBlockRange';
-import meiLogoUrl from '../meilogo.png';
+import meiLogoUrl from './meilogo.png';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
@@ -59,6 +59,10 @@ function isMeiText(text: string): boolean {
   return /<mei(?:\s|>)/i.test(text);
 }
 
+function isXmlText(text: string): boolean {
+  return /<\?xml\b|<[A-Za-z_][\w:.-]*(?:\s|>)/.test(extractCodeBlockBody(text).trim());
+}
+
 function getInputFrom(format: string): string {
   return format === 'pae' ? 'pae' : format;
 }
@@ -82,6 +86,39 @@ function splitNotationAndOptions(body: string): { notation: string; optionsText:
     notation: lines.slice(0, end).join('\n').trim(),
     optionsText: lines.slice(end).join('\n').trim(),
   };
+}
+
+function collectXmlIds(value: string): string[] {
+  const ids: string[] = [];
+  const regex = /\bxml:id\s*=\s*["']([^"']+)["']/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(value)) !== null) ids.push(match[1]);
+  return ids;
+}
+
+function collectXmlIdCandidatesNearPosition(text: string, pos: number, lineFrom: number, lineTo: number): string[] {
+  const candidates: string[] = [];
+  const add = (ids: string[]) => {
+    ids.forEach((id) => {
+      if (!candidates.includes(id)) candidates.push(id);
+    });
+  };
+
+  const lineText = text.slice(lineFrom, lineTo);
+  add(collectXmlIds(lineText));
+  if (!lineText.includes('<')) return candidates;
+
+  const tagStart = text.lastIndexOf('<', pos);
+  const tagEnd = text.indexOf('>', pos);
+  if (tagStart >= 0 && tagEnd >= pos) {
+    const previousTagEnd = text.lastIndexOf('>', pos);
+    if (tagStart > previousTagEnd) add(collectXmlIds(text.slice(tagStart, tagEnd + 1)));
+  }
+
+  const contextStart = Math.max(0, pos - 1000);
+  add(collectXmlIds(text.slice(contextStart, pos)).reverse());
+
+  return candidates;
 }
 
 /** Theme-Override: kräftigere Hervorhebung der aktiven Zeile */
@@ -447,6 +484,7 @@ export class MusicEditorView extends ItemView {
         basicSetup,
         xml(),
         markedXmlLineField,
+        this.createEditorSvgSelectionExtension(),
         search(),
         keymap.of(searchKeymap),
         changeExt,
@@ -563,6 +601,7 @@ export class MusicEditorView extends ItemView {
           basicSetup,
           xml(),
           markedXmlLineField,
+          this.createEditorSvgSelectionExtension(),
           EditorState.readOnly.of(true),
           CMEditorView.editable.of(false),
           search(),
@@ -581,6 +620,7 @@ export class MusicEditorView extends ItemView {
           basicSetup,
           xml(),
           markedXmlLineField,
+          this.createEditorSvgSelectionExtension(),
           search(),
           keymap.of(searchKeymap),
           blockChangeExt,
@@ -743,6 +783,7 @@ export class MusicEditorView extends ItemView {
         basicSetup,
         xml(),
         markedXmlLineField,
+        this.createEditorSvgSelectionExtension(),
         search(),
         keymap.of(searchKeymap),
         blockChangeExt,
@@ -758,6 +799,7 @@ export class MusicEditorView extends ItemView {
         basicSetup,
         xml(),
         markedXmlLineField,
+        this.createEditorSvgSelectionExtension(),
         search(),
         keymap.of(searchKeymap),
         fileChangeExt,
@@ -840,6 +882,8 @@ export class MusicEditorView extends ItemView {
       new Notice('This codeblock is already MEI.');
       return;
     }
+    const confirmed = await confirmConvertToMei(this.app, parsed.format);
+    if (!confirmed) return;
 
     const { notation, optionsText } = splitNotationAndOptions(body);
     window.VerovioToolkit.renderData(notation, { ...parsed.options, inputFrom: getInputFrom(parsed.format) });
@@ -877,6 +921,34 @@ export class MusicEditorView extends ItemView {
     button.setAttribute('aria-disabled', String(disabled));
   }
 
+  private createEditorSvgSelectionExtension() {
+    return CMEditorView.domEventHandlers({
+      click: (event, editor) => {
+        this.selectSvgElementFromEditorClick(event, editor);
+        return false;
+      }
+    });
+  }
+
+  private selectSvgElementFromEditorClick(event: MouseEvent, editor: CMEditorView) {
+    if (!this.currentUid) return;
+
+    const pos = editor.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (pos === null) return;
+
+    const text = editor.state.doc.toString();
+    if (!isXmlText(text)) return;
+
+    const line = editor.state.doc.lineAt(pos);
+    const candidates = collectXmlIdCandidatesNearPosition(text, pos, line.from, line.to);
+    const selected = candidates.some((id) => (
+      selectRenderedNotationElement(this.currentUid!, id, event.metaKey || event.ctrlKey)
+    ));
+    if (!selected) return;
+
+    editor.dispatch({ effects: markXmlLineEffect.of(line.from) });
+  }
+
   private async isExternalReferenceBlock(uid: string): Promise<boolean> {
     const blockText = await this.readMappedBlockText(uid);
     const body = extractCodeBlockBody(blockText).trim();
@@ -908,6 +980,7 @@ export class MusicEditorView extends ItemView {
     const text = doc.toString();
     const attrMatch = new RegExp(`xml:id\\s*=\\s*["']${escapeRegExp(elementId)}["']`).exec(text);
     if (!attrMatch) {
+      if (!isXmlText(text)) return;
       new Notice(`xml:id not found in editor: ${elementId}`);
       return;
     }
@@ -966,5 +1039,53 @@ class ChooseMeiEditTargetModal extends Modal {
     new ButtonComponent(buttonRow)
       .setButtonText('Cancel')
       .onClick(() => this.close());
+  }
+}
+
+function confirmConvertToMei(app: VerovioMusicRenderer['app'], format: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const modal = new ConfirmConvertToMeiModal(app, format, resolve);
+    modal.open();
+  });
+}
+
+class ConfirmConvertToMeiModal extends Modal {
+  private resolved = false;
+
+  constructor(
+    app: VerovioMusicRenderer['app'],
+    private readonly format: string,
+    private readonly resolveChoice: (confirmed: boolean) => void
+  ) {
+    super(app);
+  }
+
+  onOpen() {
+    this.contentEl.empty();
+    this.contentEl.createEl('h2', { text: 'Convert to MEI?' });
+    this.contentEl.createEl('p', {
+      text: `This will replace the inline ${this.format} notation in the codeblock with generated MEI. Codeblock options will be kept.`
+    });
+
+    const buttonRow = this.contentEl.createDiv('verovio-confirm-buttons');
+    new ButtonComponent(buttonRow)
+      .setButtonText('Convert to MEI')
+      .setCta()
+      .onClick(() => {
+        this.resolved = true;
+        this.close();
+        this.resolveChoice(true);
+      });
+    new ButtonComponent(buttonRow)
+      .setButtonText('Cancel')
+      .onClick(() => {
+        this.resolved = true;
+        this.close();
+        this.resolveChoice(false);
+      });
+  }
+
+  onClose() {
+    if (!this.resolved) this.resolveChoice(false);
   }
 }

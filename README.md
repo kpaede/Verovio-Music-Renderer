@@ -7,7 +7,7 @@ This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https:/
 The plugin currently has the following features:
 - Rendering MEI, MusicXML, ABC, PAE, Humdrum, CMME, GABC, and Volpiano notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
 - Converting these formats to MEI via the Obsidian Command Palette.
-- A side panel where you can edit your musical code (with syntax highlighting for XML and MEI). You can click on a rendered note and it will jump to the right line of code. (Only works for MEI code directly from the code block, not for linked files.)
+- A side panel where you can edit musical code with XML and MEI syntax highlighting. For MEI, the rendered score and the code editor are linked in both directions: clicking a rendered element jumps to its XML line, and clicking an XML line selects the matching SVG element.
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
 - A settings menu to adjust various rendering options (including an automatic dark mode and highlight color).
 - Sound playback of the rendered music.
@@ -294,7 +294,23 @@ You can open a Plaine & Easie editor from the Obsidian Command Palette with the 
 ![](screenshots/PAE_editor.png)
 
 ## Side Panel
-You can open a side panel via the Obsidian Command Palette to edit your musical code directly, complete with XML and MEI syntax highlighting. Clicking on a rendered note will jump you to the corresponding line of code—but this only works for MEI inside a code block, not for externally linked files.
+You can open a side panel via the Obsidian Command Palette or from a rendered score to inspect and edit the notation behind the rendering. The panel uses the same toolbar everywhere, with tabs for the referenced content, the original code block, MEI editing commands, insertion commands, conversion to MEI, and search.
+
+For MEI data, the side panel is connected to the rendered SVG:
+- Clicking a rendered note or other selectable SVG element highlights it, plays it when note playback on click is enabled, and jumps to the matching `xml:id` in the editor.
+- Clicking an XML line in the editor selects the matching SVG element in blue.
+- You can select several rendered elements with the rectangle selection tool. `Cmd` / `Ctrl` lets you extend the current selection.
+- Clicking outside the rendering clears the active score selection so Obsidian's normal editor shortcuts are not intercepted accidentally.
+
+The Edit and Insert menus are available for editable MEI content. They can be used from the toolbar or by the displayed shortcuts once MEI elements are selected. The commands include common operations such as deleting elements, changing notes and rests, changing pitch and duration, toggling accidentals, adding control elements such as dynamics, tempo, slurs, beams, arpeggios, trills, octaves, clefs, and related MEI insertions.
+
+The panel supports the different rendering sources explicitly:
+- Inline MEI code blocks are fully editable in the side panel.
+- MEI files from the vault can be edited directly, while the code block tab still lets you adjust the block that references the file.
+- External URL sources are shown read-only for the fetched content; their local code block can still be edited.
+- Inline non-MEI code blocks keep the Edit and Insert menus disabled, but can be converted to MEI from the toolbar after confirmation. Existing code block options such as `measureRange` are preserved where possible.
+
+The built-in search view follows Obsidian's editor search pattern and can be toggled on and off from the toolbar.
 
 ![](screenshots/sidepanel.png)
 
@@ -350,6 +366,8 @@ This plugin respects your privacy:
 
 ## Additionally Used (With Many Thanks):
 - [Verovio](https://github.com/rism-digital/verovio) – please support [RISM](https://rism.digital/) and their amazing work
+- [Verovio PAE Editor](https://www.verovio.org/pae-editor.html) – many functions for quick and dirty PAE insertion were adapted from this editor
+- [mei-friend](https://github.com/mei-friend/mei-friend) – the side panel editing functions were taken from the mei-friend editor
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
 
 I have just rudimentary programming skills, so this plugin is mostly vibe coded.

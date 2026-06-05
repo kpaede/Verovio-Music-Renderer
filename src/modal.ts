@@ -186,7 +186,12 @@ export class VerovioModal extends Modal {
       type: 'button',
       cls: 'mod-cta',
     });
-    insertButton.addEventListener('click', () => this.insertCodeBlock());
+    insertButton.addEventListener('click', () => this.insertPaeCodeBlock());
+    const insertMeiButton = actions.createEl('button', {
+      text: 'Insert MEI codeblock',
+      type: 'button',
+    });
+    insertMeiButton.addEventListener('click', () => this.insertMeiCodeBlock());
 
     this.updateDurationButtons();
     this.updatePreview();
@@ -489,10 +494,30 @@ export class VerovioModal extends Modal {
     }
   }
 
-  private insertCodeBlock() {
+  private insertPaeCodeBlock() {
     const pae = this.buildPae();
     this.onInsert(`\`\`\`verovio\n${pae}\n\`\`\`\n`);
     new Notice('PAE codeblock inserted.');
     this.close();
+  }
+
+  private insertMeiCodeBlock() {
+    try {
+      const mei = this.convertPaeToMei(this.buildPae()).trim();
+      this.onInsert(`\`\`\`verovio\n${mei}\n\`\`\`\n`);
+      new Notice('MEI codeblock inserted.');
+      this.close();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Could not convert PAE to MEI: ${message}`);
+    }
+  }
+
+  private convertPaeToMei(pae: string): string {
+    if (!window.VerovioToolkit) throw new Error('Verovio toolkit is not loaded.');
+    window.VerovioToolkit.renderData(`${pae}\n`, { inputFrom: 'pae' });
+    const mei = window.VerovioToolkit.getMEI();
+    if (!mei.trim()) throw new Error('Verovio did not return MEI.');
+    return mei;
   }
 }

@@ -450,6 +450,7 @@ async function openMusicEditorForSource(
   skipChooseModal = false
 ) {
   plugin.lastClickedUid = uid;
+  if (!openIfMissing && !sourceMap[uid] && !clickMap[uid]) return;
   const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_MUSIC_EDITOR);
   const leaf = leaves.length ? leaves[0] : (openIfMissing ? plugin.app.workspace.getRightLeaf(false) : null);
   if (!leaf) return;
@@ -795,6 +796,7 @@ function updateDragSelection(
   if (!st) return undefined;
 
   const additive = event.metaKey || event.ctrlKey;
+  if (!additive) clearOtherNotationSelections(uid, wrapper);
   const selected = new Set(additive ? baseSelection : []);
   let latest: { id: string; distance: number } | undefined;
 
@@ -857,12 +859,50 @@ function selectNotationElement(uid: string, wrapper: HTMLElement, elementId: str
       ? st.selectedElementIds.filter((id) => id !== elementId)
       : [...st.selectedElementIds, elementId];
   } else {
+    clearOtherNotationSelections(uid, wrapper);
     st.selectedElementIds = [elementId];
   }
   st.lastSelectedElementId = elementId;
   armedNotationShortcutUid = st.selectedElementIds.length ? uid : null;
 
   applyNotationSelection(uid, wrapper);
+}
+
+export function selectRenderedNotationElement(uid: string, elementId: string, additive = false): boolean {
+  const st = instanceStateMap[uid];
+  const wrapper = activeDocument.querySelector<HTMLElement>(
+    `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
+  );
+  if (!st || !wrapper) return false;
+
+  const element = wrapper.querySelector<SVGElement>(`#${cssEscape(elementId)}`);
+  if (!element) return false;
+
+  if (additive) {
+    st.selectedElementIds = st.selectedElementIds.includes(elementId)
+      ? st.selectedElementIds.filter((id) => id !== elementId)
+      : [...st.selectedElementIds, elementId];
+  } else {
+    clearOtherNotationSelections(uid, wrapper);
+    st.selectedElementIds = [elementId];
+  }
+  st.lastSelectedElementId = st.selectedElementIds.at(-1);
+  armedNotationShortcutUid = st.selectedElementIds.length ? uid : null;
+
+  applyNotationSelection(uid, wrapper);
+  return true;
+}
+
+function clearOtherNotationSelections(activeUid: string, activeWrapper: HTMLElement) {
+  const root = activeWrapper.ownerDocument;
+  Object.entries(instanceStateMap).forEach(([uid, st]) => {
+    if (uid === activeUid || (!st.selectedElementIds.length && !st.lastSelectedElementId)) return;
+    st.selectedElementIds = [];
+    st.lastSelectedElementId = undefined;
+    if (armedNotationShortcutUid === uid) armedNotationShortcutUid = null;
+    const wrapper = root.querySelector<HTMLElement>(`.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`);
+    if (wrapper) applyNotationSelection(uid, wrapper);
+  });
 }
 
 function applyNotationSelection(uid: string, wrapper: HTMLElement) {

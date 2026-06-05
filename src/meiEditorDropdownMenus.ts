@@ -18,18 +18,31 @@ export function createMeiEditorDropdownMenu(parent: HTMLElement, context: MeiEdi
   container.hide();
 
   let activeKind: MeiEditorMenuKind | null = null;
+  let activeAnchor: HTMLElement | null = null;
+  const ownerDocument = parent.ownerDocument;
+
+  const onPointerDown = (event: PointerEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (container.contains(target) || activeAnchor?.contains(target)) return;
+    close();
+  };
 
   const close = () => {
     activeKind = null;
+    activeAnchor = null;
+    ownerDocument.removeEventListener('pointerdown', onPointerDown, true);
     container.empty();
     container.hide();
   };
 
   const open = (kind: MeiEditorMenuKind, anchor: HTMLElement) => {
     activeKind = kind;
+    activeAnchor = anchor;
     renderDropdown(container, kind === 'manipulate' ? MANIPULATE_MENU : INSERT_MENU, context);
     positionDropdown(container, anchor, parent);
     container.show();
+    ownerDocument.addEventListener('pointerdown', onPointerDown, true);
   };
 
   return {
