@@ -2,19 +2,19 @@
 
 ![](screenshots/demo.gif)
 
-This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – a lightweight open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as MusicXML, ABC, PAE, CMME, GABC, Humdrum, and Volpiano) into SVG. With this plugin, you can render musical scores seamlessly within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
+This is a plugin for [Obsidian](https://obsidian.md) that uses [Verovio](https://www.verovio.org/) – an open-source library for engraving Music Encoding Initiative (MEI) music scores (as well as MusicXML, ABC, PAE, CMME, GABC, Humdrum, and Volpiano) into SVG. With this plugin, you can render musical scores  within Obsidian, edit them and play them back, enhancing your efficiency when working with written music.
 
 The plugin currently has the following features:
 - Rendering MEI, MusicXML, ABC, PAE, Humdrum, CMME, GABC, and Volpiano notation dynamically from files in the Obsidian folder (relative paths) and URLs (absolute paths) and also directly from code blocks.
 - Converting supported formats to MEI via the Obsidian Command Palette or directly from the side panel.
-- A side panel where you can edit musical code with XML and MEI syntax highlighting, search the referenced file or code block, adjust per-rendering settings, and convert non-MEI sources to MEI. For MEI, the rendered score and the code editor are linked in both directions: clicking a rendered element jumps to its XML line, and clicking an XML line selects the matching SVG element.
+- A side panel where you can edit musical code with XML and MEI syntax highlighting, search the referenced file or code block, adjust per-rendering settings, and convert non-MEI sources to MEI. For MEI, the rendered score and the code editor are linked in both directions: clicking a rendered element jumps to its line – and clicking line selects the matching SVG element if there is one.
 - A download button for the rendered SVG file (the toolbar is visible when hovering the mouse over the rendered music).
-- A settings menu with global rendering defaults, grouped Verovio controls, tooltips, sliders, reset buttons, automatic dark mode, and highlight color settings.
 - Sound playback of the rendered music.
 - Highlighting of live playback notes, synced to the sound playback.
 - Opening the rendered file via an external editor (if you want to edit your files with one click).
 - Rendering specific measure selections.
 - Page turning buttons and automatic page turning during playback
+- A settings menu with global rendering defaults, grouped Verovio controls, tooltips, sliders, reset buttons, automatic dark mode, and highlight color settings.
 
 
 ## How to Use
