@@ -13,6 +13,7 @@ import { getHighlightColor, getSelectionColor, sanitizeVerovioOptions } from './
 import { addGabcMetadataToMEI, convertInlineCodeToMEI, fixGabcMeiSyllables, getInputFrom, prepareGabcInput } from './verovioImport';
 import { applyMeasureRange, hasMeasures } from './measureRange';
 import { fetchMEIData } from './verovioSourceResolver';
+import { resetVerovioToolkitOptions } from './verovioToolkit';
 import {
   applyNotationSelection,
   attachNotationClickHandlers,
@@ -211,6 +212,7 @@ export async function processVerovioCodeBlocks(
 
     const merged = { ...this.settings, ...options };
     const verovioOptions = sanitizeVerovioOptions(merged);
+    resetVerovioToolkitOptions();
     window.VerovioToolkit.setOptions({ ...verovioOptions, inputFrom: loadInputFrom });
     window.VerovioToolkit.loadData(rawMEI);
     const importedMEI = window.VerovioToolkit.getMEI();
@@ -314,6 +316,7 @@ export function updateSVG(uid: string, wrapper: HTMLElement) {
     const selectionColor = st.selectionColor || container.style.getPropertyValue('--verovio-selection-color') || '#0066FF';
     container.style.setProperty('--verovio-selection-color', selectionColor);
   }
+  resetVerovioToolkitOptions();
   window.VerovioToolkit.setOptions({ ...sanitizeVerovioOptions(st.options), inputFrom: 'mei' });
   window.VerovioToolkit.loadData(st.meiData);
   applyMeasureRange(st.measureRange);
@@ -358,6 +361,7 @@ export function refreshRenderingsForSource(sourcePath: string, meiData: string) 
       if (!st || !wrapper) return;
 
       st.meiData = meiData;
+      resetVerovioToolkitOptions();
       window.VerovioToolkit.setOptions({ ...sanitizeVerovioOptions(st.options), inputFrom: 'mei' });
       window.VerovioToolkit.loadData(st.meiData);
       applyMeasureRange(st.measureRange);

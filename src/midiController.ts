@@ -3,6 +3,7 @@ import MIDI from 'lz-midi';
 import { Notice } from 'obsidian';
 import { changePage, updateSVG } from './verovioProcessor';
 import { instanceStateMap, NOTE_ON_OFFSET } from './verovioState';
+import { resetVerovioToolkitOptions } from './verovioToolkit';
 
 interface MidiMessage {
   message: number;
@@ -177,6 +178,7 @@ export function playMIDI(uid: string) {
   MIDI.Player.clearListeners?.();
   resetMidiChannelsToPiano();
 
+  resetVerovioToolkitOptions();
   window.VerovioToolkit.setOptions({ ...st.options, inputFrom: 'mei' });
   window.VerovioToolkit.loadData(st.meiData);
   const playbackRange = getPlaybackRange(st);

@@ -1,4 +1,5 @@
 import { App, Modal, Notice, setIcon } from 'obsidian';
+import { resetVerovioToolkitOptions } from './verovioToolkit';
 
 type InsertCallback = (codeBlock: string) => void;
 
@@ -244,6 +245,7 @@ export class VerovioModal extends Modal {
     ].join('\n');
 
     try {
+      resetVerovioToolkitOptions();
       const rendered = window.VerovioToolkit.renderData(pae, {
         inputFrom: 'pae',
         scale: 50,
@@ -449,6 +451,7 @@ export class VerovioModal extends Modal {
 
     try {
       this.showValidation(pae);
+      resetVerovioToolkitOptions();
       const svg = window.VerovioToolkit.renderData(`${pae}\n`, {
         inputFrom: 'pae',
         scale: 50,
@@ -515,6 +518,7 @@ export class VerovioModal extends Modal {
 
   private convertPaeToMei(pae: string): string {
     if (!window.VerovioToolkit) throw new Error('Verovio toolkit is not loaded.');
+    resetVerovioToolkitOptions();
     window.VerovioToolkit.renderData(`${pae}\n`, { inputFrom: 'pae' });
     const mei = window.VerovioToolkit.getMEI();
     if (!mei.trim()) throw new Error('Verovio did not return MEI.');

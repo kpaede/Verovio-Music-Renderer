@@ -10,6 +10,7 @@ declare module 'verovio/esm' {
   export class VerovioToolkit {
     constructor(module: unknown);
     setOptions(options: VerovioOptions): void;
+    resetOptions(): void;
     loadData(data: string): void;
     redoLayout(): void;
     select(opts: VerovioOptions): void;

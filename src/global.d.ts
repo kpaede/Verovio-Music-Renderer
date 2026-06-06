@@ -1,5 +1,6 @@
 declare interface VerovioToolkit {
   setOptions(options: VerovioOptions): void;
+  resetOptions(): void;
   loadData(data: string): void;
   redoLayout(): void;
   select(opts: VerovioOptions): void;

@@ -1,6 +1,7 @@
 import type { VerovioFormat, VerovioOptionValue } from './parseVerovioSource';
 import createVerovioModule from 'verovio/wasm-hum';
 import { VerovioToolkit } from 'verovio/esm';
+import { resetVerovioToolkitOptions } from './verovioToolkit';
 
 interface GabcMetadata {
   title?: string;
@@ -23,6 +24,7 @@ export async function convertInlineCodeToMEI(
   if (format === 'mei') return code;
   const toolkit = format === 'abc' ? await createIsolatedToolkit() : window.VerovioToolkit;
   try {
+    resetVerovioToolkitOptions(toolkit);
     toolkit.renderData(code, { ...options, inputFrom: getInputFrom(format) });
     const mei = toolkit.getMEI();
     if (!mei.trim()) throw new Error(`Failed to convert ${format} input to MEI.`);
