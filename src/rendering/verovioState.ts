@@ -1,5 +1,5 @@
-import type { VerovioOptions } from './parseVerovioSource';
-import type VerovioMusicRenderer from './main';
+import type { VerovioOptions } from '../verovio/parseVerovioSource';
+import type VerovioMusicRenderer from '../main';
 
 export interface VerovioState {
   meiData: string;

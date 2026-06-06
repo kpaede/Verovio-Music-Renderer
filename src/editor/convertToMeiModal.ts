@@ -1,5 +1,5 @@
 import { ButtonComponent, Modal } from 'obsidian';
-import VerovioMusicRenderer from './main';
+import VerovioMusicRenderer from '../main';
 
 export function confirmConvertToMei(app: VerovioMusicRenderer['app'], format: string): Promise<boolean> {
   return new Promise((resolve) => {

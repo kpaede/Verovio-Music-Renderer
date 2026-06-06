@@ -1,5 +1,5 @@
 import { extractCodeBlockBody } from './codeBlockRange';
-import type { VerovioOptionValue } from './parseVerovioSource';
+import type { VerovioOptionValue } from '../verovio/parseVerovioSource';
 
 export function isMeiText(text: string): boolean {
   return /<mei(?:\s|>)/i.test(text);

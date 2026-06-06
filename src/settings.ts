@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, setTooltip } from 'obsidian';
 import VerovioMusicRenderer from './main';
-import { renderVerovioRenderingSettings, type RenderingSettingValue } from './renderingSettingsControls';
+import { renderVerovioRenderingSettings, type RenderingSettingValue } from './rendering/renderingSettingsControls';
 
 export interface VerovioPluginSettings {
   [key: string]: RenderingSettingValue;
@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS: VerovioPluginSettings = {
   playNoteOnClick: false
 }
 
-export { MUSIC_FALLBACK_FONTS, MUSIC_FONTS } from './musicFonts';
+export { MUSIC_FALLBACK_FONTS, MUSIC_FONTS } from './rendering/musicFonts';
 
 export class VerovioSettingTab extends PluginSettingTab {
   plugin: VerovioMusicRenderer;

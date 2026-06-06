@@ -1,4 +1,4 @@
-import type { VerovioOptions } from './parseVerovioSource';
+import type { VerovioOptions } from '../verovio/parseVerovioSource';
 
 const PLUGIN_ONLY_OPTION_KEYS = new Set(['highlightColor', 'selectionColor', 'playNoteOnClick', 'darkColor', 'darkMode', 'darkModeStyle']);
 

@@ -1,36 +1,25 @@
-import VerovioMusicRenderer from './main';
+import VerovioMusicRenderer from '../main';
 import { ItemView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
-import { clickMap, instanceStateMap, refreshRenderingsForSource, selectRenderedNotationElement, sourceMap, updateSVG } from './verovioProcessor';
-import parseVerovioSource from './parseVerovioSource';
-import type { VerovioOptionValue } from './parseVerovioSource';
+import { clickMap, instanceStateMap, refreshRenderingsForSource, selectRenderedNotationElement, sourceMap } from '../rendering/verovioProcessor';
+import parseVerovioSource from '../verovio/parseVerovioSource';
 
 // CodeMirror 6
 import {
   EditorView as CMEditorView
 } from '@codemirror/view';
 import { closeSearchPanel, openSearchPanel, searchPanelOpen } from '@codemirror/search';
-import { createMeiEditorDropdownMenu } from './meiEditorDropdownMenus';
-import { applyMeiEditorCommand } from './meiEditorOperations';
-import { extractCodeBlockBody, replaceCodeBlockBody, resolveCodeBlockRange } from './codeBlockRange';
-import { renderVerovioRenderingSettings, type RenderingSettingValue } from './renderingSettingsControls';
-import { DEFAULT_SETTINGS } from './settings';
+import { createMeiEditorDropdownMenu } from './mei/meiEditorDropdownMenus';
+import { extractCodeBlockBody, replaceCodeBlockBody } from './codeBlockRange';
 import { EDITOR_TOOLBAR_ITEMS, setToolbarIcon, type CombinedEditorTab, type SingleEditorTab } from './editorToolbar';
 import {
-  getCodeBlockBodyOptionsText,
   isMeiText,
-  isXmlText,
-  parseOptionText,
-  removeOptionsFromBody,
-  splitNotationAndOptions,
-  updateOptionInBody
 } from './editorCodeblockOptions';
-import { convertInlineCodeToMEI } from './verovioImport';
-import {
-  collectXmlIdCandidatesNearPosition,
-  markXmlLineEffect
-} from './editorXmlTools';
-import { confirmConvertToMei } from './convertToMeiModal';
 import { createMusicCodeEditor } from './musicCodeEditor';
+import { jumpToXmlId, selectSvgElementFromEditorClick } from './editorNavigation';
+import { convertCurrentBlockToMei, runMeiEditorCommand } from './editorMeiWorkflows';
+import { renderEditorRenderingSettings } from './editorRenderingSettings';
+import { isExternalReferenceBlock } from './editorSourceReader';
+import { loadBlockSource, loadCombinedSource, loadExternalCombinedSource, loadFileSource } from './editorSourceLoaders';
 
 export const VIEW_TYPE_MUSIC_EDITOR = 'music-editor-view';
 
@@ -88,7 +77,7 @@ export class MusicEditorView extends ItemView {
     const path = sourceMap[uid];
     const canEditBlock = Boolean(clickMap[uid]);
     const canEditMeiFile = path?.toLowerCase().endsWith('.mei') ?? false;
-    const isExternalBlock = canEditBlock ? await this.isExternalReferenceBlock(uid) : false;
+    const isExternalBlock = canEditBlock ? await isExternalReferenceBlock(this.plugin, uid) : false;
 
     if (elementId && canEditMeiFile && path && this.sourcePath === path) {
       if (this.editMode === 'file' && this.currentEditor) {
@@ -142,113 +131,64 @@ export class MusicEditorView extends ItemView {
   /** Datei laden, Snapshot speichern, und Editor öffnen */
   public async openBlock(uid: string, elementId: string): Promise<void> {
     this.currentUid = uid;
-    const mapping = clickMap[uid];
-    if (!mapping) {
-      new Notice('Attachment not found.');
-      return;
-    }
+    const source = await loadBlockSource(this.plugin, uid);
+    if (!source) return;
 
-    const { filePath, startLine, endLine } = mapping;
-    const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof TFile)) {
-      new Notice(`File not found.: ${filePath}`);
-      return;
-    }
-
-    const content = await this.app.vault.read(file);
-    const lines = content.split('\n');
-    const range = resolveCodeBlockRange(lines, startLine, endLine);
-
-    this.origLines        = lines;
-    this.file             = file;
+    this.origLines        = source.lines;
+    this.file             = source.file;
     this.sourcePath       = undefined;
-    this.fileStartLine    = range.startLine;
-    this.fileEndLine      = range.endLineExclusive;
+    this.fileStartLine    = source.range.startLine;
+    this.fileEndLine      = source.range.endLineExclusive;
     this.editMode         = 'block';
 
-    this.showEditor(range.text, elementId);
+    this.showEditor(source.range.text, elementId);
   }
 
   public async openFile(path: string, elementId = ''): Promise<void> {
-    const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof TFile)) {
-      new Notice(`File not found.: ${path}`);
-      return;
-    }
+    const source = await loadFileSource(this.plugin, path);
+    if (!source) return;
 
-    const content = await this.app.vault.read(file);
-    this.origLines = content.split('\n');
-    this.file = file;
+    this.origLines = source.lines;
+    this.file = source.file;
     this.sourcePath = path;
     this.fileStartLine = 0;
     this.fileEndLine = this.origLines.length;
     this.editMode = 'file';
 
-    this.showEditor(content, elementId);
+    this.showEditor(source.content, elementId);
   }
 
   public async openCombined(uid: string, elementId: string): Promise<void> {
     this.currentUid = uid;
-    const mapping = clickMap[uid];
-    const path = sourceMap[uid];
-    if (!mapping || !path) {
-      new Notice('Attachment not found.');
-      return;
-    }
+    const source = await loadCombinedSource(this.plugin, uid);
+    if (!source) return;
 
-    const blockFile = this.app.vault.getAbstractFileByPath(mapping.filePath);
-    if (!(blockFile instanceof TFile)) {
-      new Notice(`File not found.: ${mapping.filePath}`);
-      return;
-    }
-
-    const targetFile = this.app.vault.getAbstractFileByPath(path);
-    if (!(targetFile instanceof TFile)) {
-      new Notice(`File not found.: ${path}`);
-      return;
-    }
-
-    const blockContent = await this.app.vault.read(blockFile);
-    const fileContent = await this.app.vault.read(targetFile);
-
-    this.blockOrigLines = blockContent.split('\n');
-    const range = resolveCodeBlockRange(this.blockOrigLines, mapping.startLine, mapping.endLine);
-    this.file = targetFile;
-    this.sourcePath = path;
+    this.blockOrigLines = source.blockLines;
+    this.file = source.targetFile;
+    this.sourcePath = source.path;
     this.fileStartLine = 0;
-    this.fileEndLine = fileContent.split('\n').length;
-    this.blockFile = blockFile;
-    this.blockFileStartLine = range.startLine;
-    this.blockFileEndLine = range.endLineExclusive;
+    this.fileEndLine = source.fileContent.split('\n').length;
+    this.blockFile = source.blockFile;
+    this.blockFileStartLine = source.range.startLine;
+    this.blockFileEndLine = source.range.endLineExclusive;
     this.editMode = 'combined';
 
-    this.showCombinedEditor(range.text, fileContent, elementId);
+    this.showCombinedEditor(source.range.text, source.fileContent, elementId);
   }
 
   public async openExternalCombined(uid: string, elementId: string): Promise<void> {
     this.currentUid = uid;
-    const mapping = clickMap[uid];
-    if (!mapping) {
-      new Notice('Attachment not found.');
-      return;
-    }
+    const source = await loadExternalCombinedSource(this.plugin, uid);
+    if (!source) return;
 
-    const blockFile = this.app.vault.getAbstractFileByPath(mapping.filePath);
-    if (!(blockFile instanceof TFile)) {
-      new Notice(`File not found.: ${mapping.filePath}`);
-      return;
-    }
-
-    const blockContent = await this.app.vault.read(blockFile);
-    this.blockOrigLines = blockContent.split('\n');
-    const range = resolveCodeBlockRange(this.blockOrigLines, mapping.startLine, mapping.endLine);
-    this.blockFile = blockFile;
-    this.blockFileStartLine = range.startLine;
-    this.blockFileEndLine = range.endLineExclusive;
+    this.blockOrigLines = source.lines;
+    this.blockFile = source.file;
+    this.blockFileStartLine = source.range.startLine;
+    this.blockFileEndLine = source.range.endLineExclusive;
     this.editMode = 'combined';
     this.sourcePath = undefined;
 
-    this.showExternalCombinedEditor(range.text, instanceStateMap[uid]?.meiData ?? '', elementId);
+    this.showExternalCombinedEditor(source.range.text, source.remoteText, elementId);
   }
 
   /** Editor einrichten und debounced bei jeder Änderung speichern */
@@ -679,99 +619,28 @@ export class MusicEditorView extends ItemView {
   }
 
   private runMeiEditorCommand(commandId: string): boolean {
-    const editor = this.editMode === 'combined'
-      ? (this.activeCombinedTab === 'block' ? this.currentBlockEditor : this.currentFileEditor)
-      : this.currentEditor;
-    const uid = this.currentUid;
-    if (!editor || !uid) {
-      new Notice('Open a MEI editor before running this command.');
-      return true;
-    }
-
-    const selectedIds = instanceStateMap[uid]?.selectedElementIds ?? [];
-    const currentText = editor.state.doc.toString();
-    const useCodeBlockEnvelope = this.editMode === 'block' || (this.editMode === 'combined' && this.activeCombinedTab === 'block');
-    const editableMei = useCodeBlockEnvelope ? extractCodeBlockBody(currentText) : currentText;
-    const result = applyMeiEditorCommand(commandId, editableMei, selectedIds);
-    if (!result.changed) {
-      if (result.message) new Notice(result.message);
-      return true;
-    }
-    const nextText = useCodeBlockEnvelope ? replaceCodeBlockBody(currentText, result.text) : result.text;
-
-    editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: nextText },
+    return runMeiEditorCommand({
+      activeCombinedTab: this.activeCombinedTab,
+      commandId,
+      currentBlockEditor: this.currentBlockEditor,
+      currentEditor: this.currentEditor,
+      currentFileEditor: this.currentFileEditor,
+      currentUid: this.currentUid,
+      editMode: this.editMode,
+      jumpToXmlId: (elementId, editor) => this.jumpToXmlId(elementId, editor),
+      plugin: this.plugin,
     });
-
-    if (commandId === 'delete' && instanceStateMap[uid]) {
-      instanceStateMap[uid].selectedElementIds = [];
-      instanceStateMap[uid].lastSelectedElementId = undefined;
-    }
-
-    const lastSelected = commandId === 'delete'
-      ? undefined
-      : instanceStateMap[uid]?.lastSelectedElementId ?? selectedIds.at(-1);
-    if (lastSelected) this.jumpToXmlId(lastSelected, editor);
-    if (useCodeBlockEnvelope && instanceStateMap[uid]) {
-      instanceStateMap[uid].meiData = result.text;
-      const wrapper = this.app.workspace.containerEl.ownerDocument.querySelector<HTMLElement>(
-        `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
-      );
-      if (wrapper) updateSVG(uid, wrapper);
-    }
-    new Notice('MEI updated.');
-    return true;
   }
 
   private async convertCurrentBlockToMei(): Promise<void> {
-    const editor = this.editMode === 'combined' ? this.currentBlockEditor : this.currentEditor;
-    const uid = this.currentUid;
-    if (!editor) return;
-    if (!window.VerovioToolkit) {
-      new Notice('Verovio toolkit is not loaded.');
-      return;
-    }
-
-    const currentText = editor.state.doc.toString();
-    const body = extractCodeBlockBody(currentText);
-    const parsed = parseVerovioSource(body);
-    if (!parsed.code) {
-      new Notice('Only inline notation codeblocks can be converted to MEI.');
-      return;
-    }
-    if (parsed.format === 'mei') {
-      new Notice('This codeblock is already MEI.');
-      return;
-    }
-    const confirmed = await confirmConvertToMei(this.app, parsed.format);
-    if (!confirmed) return;
-
-    const { notation, optionsText } = splitNotationAndOptions(body);
-    const mei = (await convertInlineCodeToMEI(notation, parsed.format, parsed.options)).trim();
-    if (!mei) {
-      new Notice(`Could not convert ${parsed.format} to MEI.`);
-      return;
-    }
-
-    const nextBody = optionsText ? `${mei}\n${optionsText}` : mei;
-    const nextText = replaceCodeBlockBody(currentText, nextBody);
-    editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: nextText },
+    await convertCurrentBlockToMei({
+      currentBlockEditor: this.currentBlockEditor,
+      currentEditor: this.currentEditor,
+      currentUid: this.currentUid,
+      editMode: this.editMode,
+      plugin: this.plugin,
+      setToolbarDisabled: (tab, disabled) => this.setToolbarDisabled(tab, disabled),
     });
-
-    if (uid && instanceStateMap[uid]) {
-      instanceStateMap[uid].meiData = mei;
-      instanceStateMap[uid].options = { ...instanceStateMap[uid].options, inputFrom: 'mei' };
-      const wrapper = this.app.workspace.containerEl.ownerDocument.querySelector<HTMLElement>(
-        `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
-      );
-      if (wrapper) updateSVG(uid, wrapper);
-    }
-
-    this.setToolbarDisabled('edit', false);
-    this.setToolbarDisabled('insert', false);
-    this.setToolbarDisabled('convert', true);
-    new Notice('Codeblock converted to MEI.');
   }
 
   private setToolbarDisabled(tab: SingleEditorTab, disabled: boolean) {
@@ -786,43 +655,12 @@ export class MusicEditorView extends ItemView {
   }
 
   private renderRenderingSettings(parent: HTMLElement) {
-    if (this.editMode === 'file' || !this.currentUid || !clickMap[this.currentUid]) {
-      parent.empty();
-      parent.createEl('p', {
-        cls: 'verovio-editor-placeholder',
-        text: 'Rendering settings can be written only when the current rendering comes from a codeblock.'
-      });
-      return;
-    }
-
-    const body = extractCodeBlockBody(this.getCurrentCodeBlockText());
-    const blockOptions = parseOptionText(getCodeBlockBodyOptionsText(body));
-    const defaultOptions: Record<string, RenderingSettingValue> = {
-      ...window.VerovioToolkit.getDefaultOptions(),
-      ...DEFAULT_SETTINGS,
-      ...this.plugin.settings,
-    };
-    renderVerovioRenderingSettings({
-      parent,
-      title: 'Rendering settings',
-      values: blockOptions,
-      fallbackValues: defaultOptions,
-      includeMeasureSelection: true,
-      resetLabel: 'Reset codeblock options',
-      resetNotice: 'Rendering settings removed from codeblock.',
-      onChange: (key, value) => this.updateCurrentCodeBlockOption(key, value),
-      onResetAll: (knownKeys) => {
-        this.replaceCurrentCodeBlockBody((currentBody) => removeOptionsFromBody(currentBody, knownKeys));
-        const uid = this.currentUid;
-        if (uid && instanceStateMap[uid]) {
-          knownKeys.forEach((key) => delete instanceStateMap[uid].options[key]);
-          instanceStateMap[uid].measureRange = undefined;
-          const wrapper = this.app.workspace.containerEl.ownerDocument.querySelector<HTMLElement>(
-            `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
-          );
-          if (wrapper) updateSVG(uid, wrapper);
-        }
-      },
+    renderEditorRenderingSettings(parent, {
+      currentUid: this.currentUid,
+      editMode: this.editMode,
+      getCurrentCodeBlockText: () => this.getCurrentCodeBlockText(),
+      plugin: this.plugin,
+      replaceCurrentCodeBlockBody: (updateBody) => this.replaceCurrentCodeBlockBody(updateBody),
     });
   }
 
@@ -830,25 +668,6 @@ export class MusicEditorView extends ItemView {
     if (this.editMode === 'combined') return this.currentBlockEditor?.state.doc.toString() ?? '';
     if (this.editMode === 'block') return this.currentEditor?.state.doc.toString() ?? '';
     return '';
-  }
-
-  private updateCurrentCodeBlockOption(key: string, value: VerovioOptionValue | undefined) {
-    this.replaceCurrentCodeBlockBody((body) => updateOptionInBody(body, key, value));
-    const uid = this.currentUid;
-    if (uid && instanceStateMap[uid]) {
-      instanceStateMap[uid].options = {
-        ...instanceStateMap[uid].options,
-        ...(value === undefined ? {} : { [key]: value }),
-      };
-      if (value === undefined) delete instanceStateMap[uid].options[key];
-      if (key === 'measureRange') {
-        instanceStateMap[uid].measureRange = typeof value === 'string' ? value : undefined;
-      }
-      const wrapper = this.app.workspace.containerEl.ownerDocument.querySelector<HTMLElement>(
-        `.verovio-container[data-uid="${uid}"] .verovio-svg-wrapper`
-      );
-      if (wrapper) updateSVG(uid, wrapper);
-    }
   }
 
   private replaceCurrentCodeBlockBody(updateBody: (body: string) => string) {
@@ -865,73 +684,15 @@ export class MusicEditorView extends ItemView {
   }
 
   private selectSvgElementFromEditorClick(event: MouseEvent, editor: CMEditorView) {
-    if (!this.currentUid) return;
-
-    const pos = editor.posAtCoords({ x: event.clientX, y: event.clientY });
-    if (pos === null) return;
-
-    const text = editor.state.doc.toString();
-    if (!isXmlText(text)) return;
-
-    const line = editor.state.doc.lineAt(pos);
-    const candidates = collectXmlIdCandidatesNearPosition(text, pos, line.from, line.to);
-    const selected = candidates.some((id) => (
-      selectRenderedNotationElement(this.currentUid!, id, event.metaKey || event.ctrlKey)
-    ));
-    if (!selected) return;
-
-    editor.dispatch({ effects: markXmlLineEffect.of(line.from) });
-  }
-
-  private async isExternalReferenceBlock(uid: string): Promise<boolean> {
-    const blockText = await this.readMappedBlockText(uid);
-    const body = extractCodeBlockBody(blockText).trim();
-    if (/^https?:\/\//i.test(body.split('\n').find((line) => line.trim()) ?? '')) return true;
-    try {
-      const parsed = parseVerovioSource(body);
-      return /^https?:\/\//i.test(parsed.filePath ?? '');
-    } catch {
-      return false;
-    }
-  }
-
-  private async readMappedBlockText(uid: string): Promise<string> {
-    const mapping = clickMap[uid];
-    if (!mapping) return '';
-    const file = this.app.vault.getAbstractFileByPath(mapping.filePath);
-    if (!(file instanceof TFile)) return '';
-    const lines = (await this.app.vault.read(file)).split('\n');
-    return resolveCodeBlockRange(lines, mapping.startLine, mapping.endLine).text;
+    selectSvgElementFromEditorClick({
+      currentUid: this.currentUid ?? undefined,
+      editor,
+      event,
+      selectRenderedElement: selectRenderedNotationElement,
+    });
   }
 
   private jumpToXmlId(elementId: string, editor?: CMEditorView) {
-    if (!elementId) return;
-
-    const targetEditor = editor ?? this.currentEditor;
-    if (!targetEditor) return;
-
-    const doc = targetEditor.state.doc;
-    const text = doc.toString();
-    const attrMatch = new RegExp(`xml:id\\s*=\\s*["']${escapeRegExp(elementId)}["']`).exec(text);
-    if (!attrMatch) {
-      if (isMeiText(text)) console.debug(`xml:id not found in editor: ${elementId}`);
-      return;
-    }
-
-    const tagStart = text.lastIndexOf('<', attrMatch.index);
-    const previousTagEnd = text.lastIndexOf('>', attrMatch.index);
-    const pos = tagStart > previousTagEnd ? tagStart : attrMatch.index;
-    const lineStart = doc.lineAt(pos).from;
-
-    targetEditor.dispatch({
-      effects: [
-        markXmlLineEffect.of(lineStart),
-        CMEditorView.scrollIntoView(pos, { y: 'start', yMargin: 50 })
-      ]
-    });
+    jumpToXmlId({ elementId, editor: editor ?? this.currentEditor });
   }
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

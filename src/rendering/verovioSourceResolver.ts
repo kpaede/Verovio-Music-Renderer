@@ -1,5 +1,5 @@
 import { normalizePath, requestUrl, TFile } from 'obsidian';
-import type VerovioMusicRenderer from './main';
+import type VerovioMusicRenderer from '../main';
 
 /**
  * Fetch MEI data from a file path (local vault) or external URL.

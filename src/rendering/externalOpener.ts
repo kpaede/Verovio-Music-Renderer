@@ -1,7 +1,7 @@
 // externalOpener.ts
 import { Notice, TFile, Platform } from 'obsidian';
 import { sourceMap } from './verovioProcessor';
-import type VerovioMusicRenderer from './main';
+import type VerovioMusicRenderer from '../main';
 
 interface ElectronShell {
   openPath(path: string): Promise<string>;

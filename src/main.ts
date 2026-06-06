@@ -1,11 +1,12 @@
 import { Editor, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
-import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioOptions, handleVerovioNotationShortcut, handleVerovioGlobalPointerDown } from './verovioProcessor';
+import { processVerovioCodeBlocks, updateSVG, instanceStateMap, sanitizeVerovioOptions } from './rendering/verovioProcessor';
+import { handleVerovioGlobalPointerDown, handleVerovioNotationShortcut } from './rendering/notationShortcuts';
 import { VerovioSettingTab, DEFAULT_SETTINGS, VerovioPluginSettings } from './settings';
-import { loadVerovio } from './verovioLoader';
-import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
-import { VerovioModal } from './paeEditorModal';
-import parseVerovioSource, { VerovioFormat } from './parseVerovioSource';
-import { convertInlineCodeToMEI } from './verovioImport';
+import { loadVerovio } from './verovio/verovioLoader';
+import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './editor/musicEditorView';
+import { VerovioModal } from './pae/paeEditorModal';
+import parseVerovioSource, { VerovioFormat } from './verovio/parseVerovioSource';
+import { convertInlineCodeToMEI } from './verovio/verovioImport';
 
 interface FencedSelection {
   body: string;
