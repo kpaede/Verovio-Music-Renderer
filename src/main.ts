@@ -5,6 +5,7 @@ import { loadVerovio } from './verovioLoader';
 import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './musicEditorView';
 import { VerovioModal } from './paeEditorModal';
 import parseVerovioSource, { VerovioFormat } from './parseVerovioSource';
+import { convertInlineCodeToMEI } from './verovioImport';
 
 interface FencedSelection {
   body: string;
@@ -121,7 +122,7 @@ export default class VerovioMusicRenderer extends Plugin {
     });
   }
 
-  private convertSelectionToMEI(editor: Editor) {
+  private async convertSelectionToMEI(editor: Editor) {
     if (!window.VerovioToolkit) {
       new Notice('Verovio toolkit is not loaded.');
       return;
@@ -145,7 +146,7 @@ export default class VerovioMusicRenderer extends Plugin {
         return;
       }
 
-      const mei = this.convertNotationToMEI(parsed.code, parsed.format).trim();
+      const mei = (await this.convertNotationToMEI(parsed.code, parsed.format)).trim();
       const replacement = fenced.prefix
         ? `${fenced.prefix}${mei}\n${fenced.suffix ?? '```'}`
         : mei;
@@ -167,11 +168,7 @@ export default class VerovioMusicRenderer extends Plugin {
     };
   }
 
-  private convertNotationToMEI(code: string, format: VerovioFormat): string {
-    if (format === 'mei') return code;
-    window.VerovioToolkit.renderData(code, { inputFrom: format });
-    const mei = window.VerovioToolkit.getMEI();
-    if (!mei.trim()) throw new Error(`Verovio did not return MEI for ${format}.`);
-    return mei;
+  private async convertNotationToMEI(code: string, format: VerovioFormat): Promise<string> {
+    return convertInlineCodeToMEI(code, format);
   }
 }

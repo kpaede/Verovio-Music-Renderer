@@ -178,11 +178,11 @@ export async function processVerovioCodeBlocks(
       if (format === 'gabc') {
         const gabc = prepareGabcInput(workingCode);
         rawMEI = addGabcMetadataToMEI(
-          fixGabcMeiSyllables(convertInlineCodeToMEI(gabc.body, format), gabc.syllables),
+          fixGabcMeiSyllables(await convertInlineCodeToMEI(gabc.body, format), gabc.syllables),
           gabc.metadata
         );
       } else {
-        rawMEI = convertInlineCodeToMEI(workingCode, format);
+        rawMEI = await convertInlineCodeToMEI(workingCode, format);
       }
       loadInputFrom = 'mei';
     } else if (filePath) {
@@ -191,9 +191,12 @@ export async function processVerovioCodeBlocks(
       if (format === 'gabc') {
         const gabc = prepareGabcInput(fileData);
         rawMEI = addGabcMetadataToMEI(
-          fixGabcMeiSyllables(convertInlineCodeToMEI(gabc.body, format), gabc.syllables),
+          fixGabcMeiSyllables(await convertInlineCodeToMEI(gabc.body, format), gabc.syllables),
           gabc.metadata
         );
+        loadInputFrom = 'mei';
+      } else if (format === 'abc') {
+        rawMEI = await convertInlineCodeToMEI(fileData, format);
         loadInputFrom = 'mei';
       } else {
         rawMEI = fileData;

@@ -1,4 +1,6 @@
-import type { VerovioFormat } from './parseVerovioSource';
+import type { VerovioFormat, VerovioOptionValue } from './parseVerovioSource';
+import createVerovioModule from 'verovio/wasm-hum';
+import { VerovioToolkit } from 'verovio/esm';
 
 interface GabcMetadata {
   title?: string;
@@ -13,13 +15,26 @@ export function getInputFrom(format: VerovioFormat): string {
   return format === 'pae' ? 'pae' : format;
 }
 
-export function convertInlineCodeToMEI(code: string, format: VerovioFormat): string {
+export async function convertInlineCodeToMEI(
+  code: string,
+  format: VerovioFormat,
+  options: Record<string, VerovioOptionValue> = {}
+): Promise<string> {
   if (format === 'mei') return code;
-  const options = { inputFrom: getInputFrom(format) };
-  window.VerovioToolkit.renderData(code, options);
-  const mei = window.VerovioToolkit.getMEI();
-  if (!mei.trim()) throw new Error(`Failed to convert ${format} input to MEI.`);
-  return mei;
+  const toolkit = format === 'abc' ? await createIsolatedToolkit() : window.VerovioToolkit;
+  try {
+    toolkit.renderData(code, { ...options, inputFrom: getInputFrom(format) });
+    const mei = toolkit.getMEI();
+    if (!mei.trim()) throw new Error(`Failed to convert ${format} input to MEI.`);
+    return mei;
+  } finally {
+    if (toolkit !== window.VerovioToolkit) toolkit.destroy?.();
+  }
+}
+
+async function createIsolatedToolkit(): Promise<VerovioToolkit> {
+  const verovioModule = await createVerovioModule();
+  return new VerovioToolkit(verovioModule);
 }
 
 export function prepareGabcInput(code: string): { body: string; metadata: GabcMetadata; syllables: string[] } {

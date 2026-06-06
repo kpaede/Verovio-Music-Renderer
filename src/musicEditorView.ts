@@ -17,7 +17,6 @@ import { DEFAULT_SETTINGS } from './settings';
 import { EDITOR_TOOLBAR_ITEMS, setToolbarIcon, type CombinedEditorTab, type SingleEditorTab } from './editorToolbar';
 import {
   getCodeBlockBodyOptionsText,
-  getInputFrom,
   isMeiText,
   isXmlText,
   parseOptionText,
@@ -25,6 +24,7 @@ import {
   splitNotationAndOptions,
   updateOptionInBody
 } from './editorCodeblockOptions';
+import { convertInlineCodeToMEI } from './verovioImport';
 import {
   collectXmlIdCandidatesNearPosition,
   markXmlLineEffect
@@ -747,8 +747,7 @@ export class MusicEditorView extends ItemView {
     if (!confirmed) return;
 
     const { notation, optionsText } = splitNotationAndOptions(body);
-    window.VerovioToolkit.renderData(notation, { ...parsed.options, inputFrom: getInputFrom(parsed.format) });
-    const mei = window.VerovioToolkit.getMEI().trim();
+    const mei = (await convertInlineCodeToMEI(notation, parsed.format, parsed.options)).trim();
     if (!mei) {
       new Notice(`Could not convert ${parsed.format} to MEI.`);
       return;
