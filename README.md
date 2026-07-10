@@ -393,7 +393,7 @@ This plugin respects your privacy:
 - [Verovio PAE Editor](https://www.verovio.org/pae-editor.html) – many functions for quick and dirty PAE insertion were adapted from this editor
 - [mei-friend](https://github.com/mei-friend/mei-friend) – the side panel editing functions were taken from the mei-friend editor
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
-- [ChordPro Viewer](https://github.com/jheddings/obsidian-chopro) by [jheddings](https://github.com/jheddings) – the ChordPro (`chopro` / `chordpro`) code-block convention the integrated lead-sheet renderer follows
+- [ChordPro Viewer](https://github.com/jheddings/obsidian-chopro) by [jheddings](https://github.com/jheddings) – the inspiration for ChordPro (`chopro` / `chordpro`) support here; seeing this plugin is what sparked the feature, which is an independent reimplementation of the idea in our own way
 
 ## FAQ
 
