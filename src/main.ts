@@ -7,6 +7,7 @@ import { MusicEditorView, VIEW_TYPE_MUSIC_EDITOR } from './editor/musicEditorVie
 import { VerovioModal } from './pae/paeEditorModal';
 import parseVerovioSource, { VerovioFormat } from './verovio/parseVerovioSource';
 import { convertInlineCodeToMEI } from './verovio/verovioImport';
+import { renderChordProBlock } from './chordpro/chordProBlock';
 
 interface FencedSelection {
   body: string;
@@ -41,6 +42,13 @@ export default class VerovioMusicRenderer extends Plugin {
         processVerovioCodeBlocks.call(this, source, el, ctx);
       }
     );
+
+    // ChordPro lead sheets (chords + lyrics). Independent of Verovio — see
+    // chordProBlock.ts. Disable the standalone ChordPro Viewer plugin to avoid
+    // both claiming the same code-block language.
+    for (const lang of ['chopro', 'chordpro']) {
+      this.registerMarkdownCodeBlockProcessor(lang, (source, el) => renderChordProBlock(source, el));
+    }
 
     this.registerView(
       VIEW_TYPE_MUSIC_EDITOR,

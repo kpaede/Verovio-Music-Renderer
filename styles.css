@@ -780,3 +780,95 @@
     margin: 0;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   ChordPro lead sheets (`chopro` / `chordpro` code blocks)
+   Screen-reader-first: DOM order is chord-then-syllable; the column layout
+   below only moves the chord visually above its syllable. Chords are set apart
+   by weight + position (not colour alone) so meaning survives without colour.
+   --------------------------------------------------------------------------- */
+.chopro-sheet {
+    font-family: var(--font-text, inherit);
+    line-height: 1.35;
+    padding: 0.25em 0;
+}
+
+.chopro-title {
+    margin: 0 0 0.1em 0;
+    font-size: 1.3em;
+    font-weight: 700;
+}
+
+.chopro-subtitle {
+    margin: 0 0 0.35em 0;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+.chopro-meta {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.chopro-meta-label {
+    font-weight: 600;
+}
+
+.chopro-comment {
+    margin: 0.35em 0;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Each syllable is a column: chord on top, lyric below, so chords sit directly
+   over the syllable they change on while the DOM keeps chord-then-lyric order. */
+.chopro-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin: 0.15em 0;
+}
+
+.chopro-line-plain {
+    /* No chords on this line: render as an ordinary lyric line. */
+    display: block;
+}
+
+.chopro-seg {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.chopro-chord {
+    font-weight: 700;
+    font-size: 0.85em;
+    line-height: 1.1;
+    /* AA-contrast accent; falls back to the theme's accent text colour. */
+    color: var(--text-accent, #2563eb);
+    white-space: pre;
+}
+
+.chopro-lyric {
+    white-space: pre-wrap;
+}
+
+/* Labelled chorus / verse / bridge groups. */
+.chopro-section {
+    margin: 0.4em 0;
+    padding: 0.1em 0 0.1em 0.7em;
+    border-left: 3px solid var(--interactive-accent, #2563eb);
+}
+
+.chopro-section-label {
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 0.1em;
+}
+
+.chopro-spacer {
+    height: 0.7em;
+}
