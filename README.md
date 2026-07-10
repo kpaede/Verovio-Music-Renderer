@@ -287,6 +287,30 @@ Volpiano files can also be rendered from the vault when using a `.volpiano`, `.v
 
 Note: Verovio imports Volpiano as regular MEI notes and produces playable MIDI. It does not currently preserve Volpiano neume grouping such as `gf` / `hgf` as grouped neumes, and line/page/column breaks such as `7` / `77` / `777` are not handled like in `music21.volpiano`.
 
+## (NEW) ChordPro Lead Sheets
+
+Verovio Music Renderer has **ChordPro integrated**: alongside engraved notation, it renders chord-and-lyric lead sheets from `chopro` (or `chordpro`) code blocks. One plugin covers both — engraved scores *and* chord sheets. (Under the hood, ChordPro carries no pitch or rhythm to engrave, so the plugin renders these blocks with a built-in lead-sheet layout rather than the Verovio engraving engine — but it's all one plugin.)
+
+````
+```chopro
+{title: Sweet Home Alabama}
+{key: D}
+
+[D]Big wheels keep on [C]turnin'
+[G]Carry me home to see my [D]kin
+```
+````
+
+Supported syntax:
+
+- **Inline chords** in square brackets, immediately before the syllable they change on: `[G]Carry`.
+- **Directives** in curly braces: `{title:}` / `{t:}`, `{subtitle:}` / `{st:}`, `{comment:}` / `{c:}`, and any `key: value` directive (`{key: D}`, `{capo: 2}`, `{tempo: 120}`, `{artist: …}`) renders as a metadata row.
+- **Sections**: `{start_of_chorus}` / `{soc}` … `{end_of_chorus}` / `{eoc}` (also verse `{sov}`, bridge `{sob}`, tab `{sot}`), rendered as labelled groups.
+
+**Accessibility.** The ChordPro renderer is built screen-reader-first: the DOM preserves chord-then-syllable order, so a screen reader reads a line the way a musician would — *"G chord, Carry me home to see my, D chord, kin"*. Chords carry an `aria-label` (so `Am` is announced as "Am chord", not the word "am"), the title renders as a heading, choruses and verses are labelled groups, and chords are set apart by weight and position — never by colour alone (WCAG 1.4.1).
+
+**Note:** `chopro` and `chordpro` are also the code-block languages used by the standalone *ChordPro Viewer* plugin. Only one plugin can own a code-block language, so **disable ChordPro Viewer** if you want this plugin to handle ChordPro rendering.
+
 ## Plaine & Easie Editor
 You can open a Plaine & Easie editor from the Obsidian Command Palette with the command "Insert Plaine & Easie music codeblock". It provides a notation-oriented input modal with note values, rests, clefs, key signatures, a small piano keyboard, live Verovio preview, and inserts the result as a compact PAE code block.
 
@@ -369,6 +393,7 @@ This plugin respects your privacy:
 - [Verovio PAE Editor](https://www.verovio.org/pae-editor.html) – many functions for quick and dirty PAE insertion were adapted from this editor
 - [mei-friend](https://github.com/mei-friend/mei-friend) – the side panel editing functions were taken from the mei-friend editor
 - [lz-midi](https://github.com/AAlittleWhite/lz-midi)
+- [ChordPro Viewer](https://github.com/jheddings/obsidian-chopro) by [jheddings](https://github.com/jheddings) – the ChordPro (`chopro` / `chordpro`) code-block convention the integrated lead-sheet renderer follows
 
 ## FAQ
 
