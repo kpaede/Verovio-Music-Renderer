@@ -17,11 +17,26 @@ export const SETTINGS_SKIP_GROUPS = new Set([
   'Element selectors',
 ]);
 
-function shouldShowRenderingOption(key: string, definition: RenderingOptionDefinition): boolean {
+export function shouldShowRenderingOption(key: string, definition: RenderingOptionDefinition): boolean {
   if (definition.cmdOnly || SETTINGS_SKIP_OPTIONS.has(key)) return false;
   if (definition.type === 'std::string') return key === 'font';
   return ['bool', 'int', 'double', 'std::string-list'].includes(definition.type ?? '');
 }
+
+export const COMMON_RENDERING_OPTIONS = [
+  {
+    key: 'scale',
+    label: 'Scale (%)',
+    title: 'Scale of the output in percent. 100 is normal size; values above 100 enlarge the notation. (default: 100; min: 1; max: 1000)',
+    min: 1, max: 1000, step: 1, defaultValue: 100,
+  },
+  {
+    key: 'pageWidth',
+    label: 'Page width',
+    title: 'The page width. Larger values fit more music into one system; smaller values wrap earlier. (default: 2100; min: 100; max: 100000)',
+    min: 100, max: 100000, step: 50, defaultValue: 2100,
+  },
+];
 
 export function renderVerovioRenderingSettings(options: RenderingSettingsOptions) {
   const { parent } = options;
@@ -95,28 +110,12 @@ function createCommonRenderingSettingsGroup(parent: HTMLElement, options: Render
   details.open = true;
   details.createEl('summary', { text: 'Common rendering settings' });
 
-  createLinkedNumberSlider(details, {
-    key: 'scale',
-    label: 'Scale (%)',
-    title: 'Scale of the output in percent. 100 is normal size; values above 100 enlarge the notation. (default: 100; min: 1; max: 1000)',
-    min: 1,
-    max: 1000,
-    step: 1,
-    value: Number(options.values.scale ?? options.fallbackValues.scale ?? 100),
-    resetValue: Number(options.fallbackValues.scale ?? 100),
+  COMMON_RENDERING_OPTIONS.forEach((option) => createLinkedNumberSlider(details, {
+    ...option,
+    value: Number(options.values[option.key] ?? options.fallbackValues[option.key] ?? option.defaultValue),
+    resetValue: Number(options.fallbackValues[option.key] ?? option.defaultValue),
     onChange: options.onChange,
-  });
-  createLinkedNumberSlider(details, {
-    key: 'pageWidth',
-    label: 'Page width',
-    title: 'The page width. Larger values fit more music into one system; smaller values wrap earlier. (default: 2100; min: 100; max: 100000)',
-    min: 100,
-    max: 100000,
-    step: 50,
-    value: Number(options.values.pageWidth ?? options.fallbackValues.pageWidth ?? 2100),
-    resetValue: Number(options.fallbackValues.pageWidth ?? 2100),
-    onChange: options.onChange,
-  });
+  }));
 }
 
 function createMeasureRangeSettingsGroup(parent: HTMLElement, options: RenderingSettingsOptions) {

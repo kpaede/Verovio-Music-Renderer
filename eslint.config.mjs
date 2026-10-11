@@ -48,6 +48,20 @@ export default defineConfig([
     },
   },
   {
+    files: ["esbuild.config.mjs", "version-bump.mjs", "tests/**/*.mjs"],
+    rules: {
+      // These files run in Node.js during development, outside Obsidian.
+      "obsidianmd/no-nodejs-modules": "off",
+    },
+  },
+  {
+    files: ["src/editor/mei/meiEditorDom.ts", "src/pae/paeRendering.ts"],
+    rules: {
+      // Detached XML documents need native factories to retain their owner document and namespaces.
+      "obsidianmd/prefer-create-el": "off",
+    },
+  },
+  {
     files: ["**/*.d.ts"],
     rules: {
       "no-undef": "off",

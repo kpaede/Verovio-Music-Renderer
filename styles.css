@@ -265,6 +265,10 @@
   color: var(--text-normal);
 }
 
+.setting-item.verovio-setting-definition {
+  display: block;
+}
+
 .verovio-rendering-option-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(96px, 34%);

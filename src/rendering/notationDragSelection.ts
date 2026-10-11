@@ -91,9 +91,7 @@ export function attachNotationDragSelector(
     event.stopPropagation();
 
     if (!selectionRect) {
-      selectionRect = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      selectionRect.setAttribute('class', 'verovio-drag-selection-rect no-invert');
-      pageMargin.appendChild(selectionRect);
+      selectionRect = pageMargin.createSvg('rect', { cls: 'verovio-drag-selection-rect no-invert' });
     }
 
     const startPoint = transformPoint(startClient, matrix);
