@@ -5,7 +5,7 @@ import {
   keymap,
   type ViewUpdate
 } from '@codemirror/view';
-import { basicSetup } from '@codemirror/basic-setup';
+import { basicSetup } from 'codemirror';
 import { xml } from '@codemirror/lang-xml';
 import { getSearchQuery, search, searchKeymap, searchPanelOpen } from '@codemirror/search';
 import {
