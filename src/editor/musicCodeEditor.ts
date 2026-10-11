@@ -7,7 +7,7 @@ import {
 } from '@codemirror/view';
 import { basicSetup } from '@codemirror/basic-setup';
 import { xml } from '@codemirror/lang-xml';
-import { search, searchKeymap } from '@codemirror/search';
+import { getSearchQuery, search, searchKeymap, searchPanelOpen } from '@codemirror/search';
 import {
   activeLineTheme,
   codeFontTheme,
@@ -29,6 +29,7 @@ export function createMusicCodeEditor(options: MusicCodeEditorOptions): CMEditor
     markedXmlLineField,
     search(),
     keymap.of(searchKeymap),
+    searchLabelStateSync(),
     highlightActiveLine(),
     activeLineTheme,
     codeFontTheme,
@@ -59,5 +60,25 @@ export function createMusicCodeEditor(options: MusicCodeEditorOptions): CMEditor
       extensions,
     }),
     parent: options.parent,
+  });
+}
+
+function searchLabelStateSync(): Extension {
+  return CMEditorView.updateListener.of((update) => {
+    if (!searchPanelOpen(update.state)) return;
+
+    const query = getSearchQuery(update.state);
+    const previousQuery = getSearchQuery(update.startState);
+    if (searchPanelOpen(update.startState)
+      && query.caseSensitive === previousQuery.caseSensitive
+      && query.regexp === previousQuery.regexp
+      && query.wholeWord === previousQuery.wholeWord) return;
+
+    // Update listeners run after CodeMirror has mounted and updated its panels.
+    update.view.dom.querySelectorAll<HTMLLabelElement>('.cm-search label').forEach((label) => {
+      const input = label.querySelector<HTMLInputElement>('input');
+      if (!input) return;
+      label.toggleClass('is-checked', input.checked);
+    });
   });
 }

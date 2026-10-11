@@ -48,10 +48,10 @@
   --verovio-selection-color: #0066FF;
 }
 .playing { fill: var(--verovio-play-color); }
-.verovio-selected,
-.verovio-selected * {
-  fill: var(--verovio-selection-color) !important;
-  stroke: var(--verovio-selection-color) !important;
+.verovio-svg-wrapper svg .verovio-selected,
+.verovio-svg-wrapper svg .verovio-selected * {
+  fill: var(--verovio-selection-color);
+  stroke: var(--verovio-selection-color);
 }
 
 .verovio-svg-wrapper g.note[id],
@@ -554,13 +554,13 @@
   background: var(--background-primary);
 }
 
-.verovio-editor-wrapper .cm-search label:has(input:checked) {
+.verovio-editor-wrapper .cm-search label.is-checked {
   border-color: var(--interactive-accent);
   background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary));
   color: var(--text-normal);
 }
 
-.verovio-editor-wrapper .cm-search label:has(input:checked)::before {
+.verovio-editor-wrapper .cm-search label.is-checked::before {
   border-color: var(--interactive-accent);
   background: var(--interactive-accent);
   box-shadow: inset 0 0 0 2px var(--background-secondary);
