@@ -108,13 +108,14 @@ export default function parseVerovioSource(src: string): ParsedVerovioSource {
 export function isCmmeInline(inlineCode: string): boolean {
   const xmlCode = extractXmlDocument(inlineCode);
   if (!xmlCode) return false;
-  return /<(?:Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)\b/i.test(xmlCode)
-    && /<(?:GeneralData|VoiceData|Section|Mensuration|Note)\b/i.test(xmlCode);
+  // Require a CMME root and complete tag names; <music-font> is MusicXML.
+  return /^<(?:Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)(?=[\s/>])/i.test(xmlCode)
+    && /<(?:GeneralData|VoiceData|Section|Mensuration|Note)(?=[\s/>])/i.test(xmlCode);
 }
 
 function extractXmlDocument(code: string): string | undefined {
   const trimmed = code.trim();
-  const rootMatch = trimmed.match(/<(?:\?xml\b[^>]*>\s*)?(?:mei|score-partwise|score-timewise|Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)\b/i);
+  const rootMatch = trimmed.match(/<(?:\?xml\b[^>]*>\s*)?(?:mei|score-partwise|score-timewise|Piece|Music|Composition|GeneralData|VoiceData|MensuralMusic)(?=[\s/>])/i);
   if (!rootMatch || rootMatch.index === undefined) return undefined;
   return trimmed.slice(rootMatch.index).trim();
 }
