@@ -6,7 +6,7 @@
 //   - DOM order is chord-then-syllable, so a screen reader reads a line the way
 //     a musician would ("G, Carry me, D, home"), while CSS stacks the chord
 //     above the syllable visually.
-//   - Chords carry an aria-label ("G chord") so tokens like "Am" are not read
+//   - Chords carry visually hidden text ("G chord") so tokens like "Am" are not read
 //     as the word "am".
 //   - The title renders as a heading and choruses/verses as labelled groups,
 //     and chords are distinguished by weight + position, never colour alone.
@@ -164,6 +164,7 @@ function renderNodes(nodes: ChordProNode[], el: HTMLElement) {
         const section = sheet.createDiv(`chopro-section chopro-${node.kind}`);
         section.setAttribute('role', 'group');
         section.setAttribute('aria-label', node.label);
+        if (node.kind === 'tab') section.setAttribute('tabindex', '0');
         section.createEl('div', { cls: 'chopro-section-label', text: node.label });
         target = section;
         break;
@@ -200,8 +201,10 @@ function renderLine(parent: HTMLElement, segments: ChordSegment[]) {
       const chord = seg.createSpan('chopro-chord');
       // Non-empty chords are read as "G chord"; an empty [] is a spacer only.
       chord.setText(chordText || ' ');
-      if (chordText) chord.setAttribute('aria-label', `${chordText} chord`);
-      else chord.setAttribute('aria-hidden', 'true');
+      chord.setAttribute('aria-hidden', 'true');
+      if (chordText) {
+        seg.createSpan({ cls: 'chopro-chord-readable', text: `${chordText} chord ` });
+      }
     }
 
     const lyric = seg.createSpan('chopro-lyric');

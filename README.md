@@ -307,7 +307,7 @@ Supported syntax:
 - **Directives** in curly braces: `{title:}` / `{t:}`, `{subtitle:}` / `{st:}`, `{comment:}` / `{c:}`, and any `key: value` directive (`{key: D}`, `{capo: 2}`, `{tempo: 120}`, `{artist: …}`) renders as a metadata row.
 - **Sections**: `{start_of_chorus}` / `{soc}` … `{end_of_chorus}` / `{eoc}` (also verse `{sov}`, bridge `{sob}`, tab `{sot}`), rendered as labelled groups.
 
-**Accessibility.** The ChordPro renderer is built screen-reader-first: the DOM preserves chord-then-syllable order, so a screen reader reads a line the way a musician would — *"G chord, Carry me home to see my, D chord, kin"*. Chords carry an `aria-label` (so `Am` is announced as "Am chord", not the word "am"), the title renders as a heading, choruses and verses are labelled groups, and chords are set apart by weight and position — never by colour alone (WCAG 1.4.1).
+**Accessibility.** The ChordPro renderer is built screen-reader-first: the DOM preserves chord-then-syllable order, so a screen reader reads a line the way a musician would — *"G chord, Carry me home to see my, D chord, kin"*. Chords carry visually hidden readable text (so `Am` is announced as "Am chord", not the word "am"), the title renders as a heading, choruses and verses are labelled groups, and chords are set apart by weight and position — never by colour alone (WCAG 1.4.1).
 
 **Note:** `chopro` and `chordpro` are also the code-block languages used by the standalone *ChordPro Viewer* plugin. Only one plugin can own a code-block language, so **disable ChordPro Viewer** if you want this plugin to handle ChordPro rendering.
 
