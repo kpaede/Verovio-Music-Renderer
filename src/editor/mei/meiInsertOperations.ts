@@ -62,10 +62,12 @@ export function addBeam(doc: Document, elements: Element[]): boolean {
 
 export function addBeamSpan(doc: Document, elements: Element[]): boolean {
   const anchors = elements.filter((element) => ['note', 'chord'].includes(element.localName));
-  if (!anchors.length) return false;
-  const startId = getXmlId(anchors[0]);
-  const endId = getXmlId(anchors.at(-1)!);
-  const measure = getMeasure(anchors[0]);
+  const start = anchors[0];
+  const end = anchors.at(-1);
+  if (!start || !end) return false;
+  const startId = getXmlId(start);
+  const endId = getXmlId(end);
+  const measure = getMeasure(start);
   if (!startId || !endId || !measure) return false;
   const beamSpan = createMeiElement(doc, 'beamSpan');
   beamSpan.setAttribute('startid', `#${startId}`);

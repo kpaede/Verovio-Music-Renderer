@@ -49,7 +49,7 @@ export function playMIDI(uid: string) {
     window.VerovioToolkit.renderToTimemap({});
   }
 
-  const origAdd = MIDI.Player.addListener.bind(MIDI.Player) as (cb: (data: MidiMessage) => void) => void;
+  const origAdd = MIDI.Player.addListener.bind(MIDI.Player);
   MIDI.Player.addListener = (cb: (data: MidiMessage) => void) => {
     origAdd((data: MidiMessage) => {
       if (data.message === 144) {

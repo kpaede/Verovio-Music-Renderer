@@ -35,7 +35,7 @@ export function renderPaeToolbarGlyph(data: string, className: 'note' | 'rest' |
       : className === 'rest'
         ? '760 160 900 900'
         : '700 360 900 980';
-    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const svg = doc.documentElement.createSvg('svg');
     svg.setAttribute('class', 'verovio-pae-vrv-icon');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');

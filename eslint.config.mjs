@@ -55,13 +55,6 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/editor/mei/meiEditorDom.ts", "src/pae/paeRendering.ts"],
-    rules: {
-      // Detached XML documents need native factories to retain their owner document and namespaces.
-      "obsidianmd/prefer-create-el": "off",
-    },
-  },
-  {
     files: ["**/*.d.ts"],
     rules: {
       "no-undef": "off",
@@ -78,6 +71,8 @@ export default defineConfig([
     rules: {
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
       "@typescript-eslint/no-unsafe-argument": "warn",
       "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",

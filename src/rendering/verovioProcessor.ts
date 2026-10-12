@@ -117,7 +117,12 @@ export async function processVerovioCodeBlocks(
       changePage,
       downloadSvg: downloadSVG,
       openEditor: (plugin, editorUid) => { void openMusicEditorForSource(plugin, editorUid, '', true, false); },
-      openExternal: (plugin, editorUid) => { openFileExternally.call(plugin, editorUid); },
+      openExternal: (plugin, editorUid) => {
+        void openFileExternally.call(plugin, editorUid).catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          new Notice(`Could not open file externally: ${message}`);
+        });
+      },
       play: playMIDI,
       renderSvg: updateSVG,
       stop: stopMIDI,

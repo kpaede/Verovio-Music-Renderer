@@ -38,7 +38,7 @@ export default class VerovioMusicRenderer extends Plugin {
     this.registerMarkdownCodeBlockProcessor(
       'verovio',
       (source, el, ctx) => {
-        processVerovioCodeBlocks.call(this, source, el, ctx);
+        return processVerovioCodeBlocks.call(this, source, el, ctx);
       }
     );
 

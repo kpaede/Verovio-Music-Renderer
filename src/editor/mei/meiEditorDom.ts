@@ -16,7 +16,7 @@ export function setXmlId(doc: Document, element: Element, prefix: string) {
 
 export function createMeiElement(doc: Document, name: string): Element {
   const namespace = doc.documentElement.namespaceURI;
-  const element = namespace ? doc.createElementNS(namespace, name) : doc.createElement(name);
+  const element = doc.createElementNS(namespace, name);
   setXmlId(doc, element, name);
   return element;
 }
